@@ -1,15 +1,28 @@
 import time
 import logging
+import pytest
 from emioapi.emioapi import emioapi
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-def main():
+@pytest.fixture
+def setupBefore():
+    """Setup function to be called before each test."""
+    emioapi.openAndConfig()
+    logger.info("Setup complete.")
+
+@pytest.fixture
+def teardownAfter():
+    """Teardown function to be called after each test."""
+    emioapi.close()
+    logger.info("Teardown complete.")
+
+def test_main(setupBefore):
 
     initial_pos_pulse = [0] * 4
-    logger.info(f"Initial position in rad: {initial_pos_pulse}")
+    logger.info(f"Initial position in pulses: {initial_pos_pulse}")
     emioapi.printStatus()
 
     emioapi.max_velocity = [1000] * 4
@@ -35,8 +48,7 @@ def main():
 
 if __name__ == "__main__":
     try:
-        emioapi.openAndConfig()
-        main()
+        pytest.main()
     except Exception as e:
         logger.error(f"An error occurred: {e}")
     finally:

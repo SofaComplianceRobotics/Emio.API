@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emioapi"
+version = "0.1.0"
+dependencies = ["pyserial", "dynamixel_sdk"]
+description = "An API for controlling  the motors of the EMIO robot."
+authors = [
+    {name = "Compliance Robotics", email = "support@compliance-robotics.com"}
+]
+requires-python = ">=3.10"
