@@ -20,7 +20,34 @@ PROTOCOL_VERSION            = 2.0
 
 DXL_IDs = (0, 1, 2, 3)
 
-from splib3.interface.serialport import getDevicePort
+import serial.tools.list_ports as list_ports
+import logging
+
+logging.basicConfig(level = logging.INFO)
+logger = logging.getLogger(__name__)
+
+def getDevicePort(device_name, method="manufacturer"):
+    """
+    Get the device port based on the device name and method.
+    :param device_name: The name of the device to search for.
+    :param method: The method to use for searching (default is "manufacturer").
+    :return: The port of the device if found, otherwise None.
+    """
+    ports = list_ports.comports()
+    logger.info(f"Available ports: {[port.device for port in ports]}")
+    logger.info(f"Searching for device: {device_name} using method: {method}")
+
+    for port in ports:
+        if method == "manufacturer":
+            if device_name in port.manufacturer:
+                logging.info(f"Found device: {device_name} on port: {port.device}")
+                return port.device
+        elif method == "description":
+            if device_name in port.description:
+                logging.info(f"Found device: {device_name} on port: {port.device}")
+                return port.device
+    return None
+
 # Use the actual port assigned to the U2D2.
 # ex) Windows: "COM*", Linux: "/dev/ttyUSB*", Mac: "/dev/tty.usbserial-*"
 DEVICENAME                  = getDevicePort("FTDI", method="manufacturer")
