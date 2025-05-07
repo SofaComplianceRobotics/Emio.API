@@ -4,6 +4,8 @@ from emioapi.emioapi import emioapi
 
 
 logger = logging.getLogger(__name__)
+# FORMAT = "[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+# logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger.setLevel(logging.INFO)
 
 def main():
@@ -30,14 +32,27 @@ def main():
     emioapi.angles = initial_pos_pulse
     time.sleep(1)
     emioapi.printStatus()
-    assert (emioapi.angles == emioapi.angles) , "Motor did not return to initial position."
 
 
 if __name__ == "__main__":
     try:
+        logger.info("Starting EMIO API test...")
+        logger.info("Opening and configuring EMIO API...")
         emioapi.openAndConfig()
+        logger.info("EMIO API opened and configured.")
+        logger.info("Running main function...")
         main()
+        logger.info("Main function completed.")
+        logger.info("Closing EMIO API...")
+        emioapi.close()
+        logger.info("EMIO API closed.")
+        logger.info("Reopening and reconfiguring EMIO API...")
+        emioapi.openAndConfig()
+        logger.info("EMIO API reopened and reconfigured.")
+        logger.info("Running main function again...")
+        main()
+        logger.info("Main function completed again.")
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.exception(f"An error occurred: {e}")
     finally:
         emioapi.close()

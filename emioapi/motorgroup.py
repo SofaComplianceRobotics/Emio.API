@@ -4,19 +4,25 @@ import time
 from dynamixel_sdk import *
 import emioapi.emiomotorsparameters as MotorsParametersTemplate
 import logging
-logging.basicConfig(level = logging.INFO)
+
 logger = logging.getLogger(__name__)
+
+class DisconnectedException(Exception):
+    """Custom exception for disconnected motors."""
+    def __init__(self):
+        message = "MotorGroup is not connected. It is either disconnected or permission denied."
+        super().__init__(message)
 
 class MotorGroup:
 
     def __init__(self, parameters: MotorsParametersTemplate) -> None:
 
         self.parameters = parameters
-        self.connected = True
+        self.deviceName = None 
 
-        logger.info("Using %s on %s" % (self.parameters.MY_DXL, self.parameters.DEVICENAME))
+        logger.info("Using %s on %s" % (self.parameters.MY_DXL, self.deviceName))
         self.packetHandler = PacketHandler(self.parameters.PROTOCOL_VERSION)
-        self.portHandler = PortHandler(self.parameters.DEVICENAME)
+        self.portHandler = PortHandler(self.deviceName)
         self.groupSyncWritePosition = GroupSyncWrite(self.portHandler, self.packetHandler,
                                                      self.parameters.ADDR_GOAL_POSITION,
                                                      self.parameters.LEN_GOAL_POSITION)
@@ -57,8 +63,69 @@ class MotorGroup:
             self.groupSyncReadVelocityTrajectory.addParam(DXL_ID)
             self.groupSyncReadPositionTrajectory.addParam(DXL_ID)
 
+    @property
+    def isConnected(self):
+        """Check if the motor group is connected."""
+        try:
+            self.groupSyncReadMoving.txRxPacket() # Check if the port is open. This call fails if the port is disconnected.
+        except Exception as e:
+            return False
+        return self.portHandler and self.portHandler.is_open  and self._isDeviceDetected()
     
-    def readMotorsData(self, groupSyncRead:GroupSyncRead):
+
+    def updateDeviceName(self):
+        """
+        Update the device name based on the available ports.
+        """
+        self.deviceName = self._getDevicePort("FTDI", method="manufacturer")
+        self.portHandler.setPortName(self.deviceName)
+        return
+    
+    def _isDeviceDetected(self):
+        for port in serial.tools.list_ports.comports():
+            if port.device == self.deviceName:
+                return True
+        return False
+
+    
+    def _getDevicePort(self, entry, method="manufacturer"):
+        """
+        Get the device port based on the device name and method.
+        :param entry: The name of the device to search for.
+        :param method: The method to use for searching (default is "manufacturer").
+        :return: The port of the device if found, otherwise None.
+        """
+        ports = []
+        comports = serial.tools.list_ports.comports()
+
+        if comports is None or len(comports) == 0:
+            logger.error("Serial ports check failed, list of ports is empty.")
+            return
+
+        if method == "manufacturer":
+            ports = [p for p in comports if p.manufacturer is not None and entry in p.manufacturer]
+        if method == "description":
+            ports = [p for p in comports if p.description is not None and entry in p.description]
+        if method == "serial_number":
+            ports = [p for p in comports if p.serial_number is not None and entry in p.serial_number]
+
+        if not ports:
+            logger.error("No serial port found with " + method + " = " + entry)
+            return
+
+        if len(ports) > 1:
+            logger.warning("Multiple port found with " + method + " = " + entry + ". Using the first.")
+
+        logger.info("Found port with " + method + " = " + entry + ": \n" +
+                    "device : " + ports[0].device + "\n" +
+                    "manufacturer : " + ports[0].manufacturer + "\n" +
+                    "description : " + ports[0].description + "\n" +
+                    "serial number : " + ports[0].serial_number
+                    )
+        return ports[0].device
+
+    
+    def _readMotorsData(self, groupSyncRead:GroupSyncRead):
         """Read data from the motor.
 
         Args:
@@ -68,7 +135,13 @@ class MotorGroup:
 
         Returns:
             int: The value read from the motor.
+
+        Raises:
+            Exception: If the motor group is not connected or if the read operation fails.
         """
+        if not self.isConnected:
+            raise Exception("MotorGroup is not connected. It is either disconnected or permission denied.")
+    
         dxl_comm_result = groupSyncRead.txRxPacket()
         if dxl_comm_result != COMM_SUCCESS:
             return None
@@ -96,13 +169,13 @@ class MotorGroup:
 
                 See https://emanual.robotis.com/docs/en/dxl/x/xc330-t288/#operating-mode for more details.
         """
-        if not self.connected:
-            return
+        if not self.isConnected:
+            raise DisconnectedException()
 
         for DXL_ID in self.parameters.DXL_IDs:
             value = self.packetHandler.read1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_OPERATING_MODE)
             if value != mode:
-                logger.info("Motor mode changed to mode %s (%s,%s)" % (mode, self.parameters.DEVICENAME, DXL_ID))
+                logger.debug("Motor mode changed to mode %s (%s,%s)" % (mode, self.deviceName, DXL_ID))
                 self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_OPERATING_MODE, mode)
 
 
@@ -124,6 +197,9 @@ class MotorGroup:
             group (GroupSyncWrite): The group sync write object.
             values (list of numbers): The values to write to the motors.
         """
+        if not self.isConnected:
+            raise DisconnectedException()
+        
         group.clearParam()
         for index, DXL_ID in enumerate(self.parameters.DXL_IDs):
             group.addParam(DXL_ID, _valToArray(values[index]))
@@ -162,7 +238,7 @@ class MotorGroup:
         Returns:
             list of numbers: unit = 1 pulse
         """
-        return self.readMotorsData(self.groupSyncReadPosition)
+        return self._readMotorsData(self.groupSyncReadPosition)
     
 
     def getGoalVelocity(self) -> list:
@@ -170,7 +246,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self.readMotorsData(self.groupSyncReadGoalVelocity)
+        return self._readMotorsData(self.groupSyncReadGoalVelocity)
     
 
     def getCurrentVelocity(self) -> list:
@@ -178,7 +254,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self.readMotorsData(self.groupSyncReadVelocity)
+        return self._readMotorsData(self.groupSyncReadVelocity)
     
 
     def isMoving(self) -> list:
@@ -186,7 +262,7 @@ class MotorGroup:
         Returns:
             list of booleans: True if the motor is moving, False otherwise
         """
-        return self.readMotorsData(self.groupSyncReadMoving)
+        return self._readMotorsData(self.groupSyncReadMoving)
     
 
     def getMovingStatus(self) -> list:
@@ -194,7 +270,7 @@ class MotorGroup:
         Returns:
             list of booleans: True if the motor is moving, False otherwise
         """
-        return self.readMotorsData(self.groupSyncReadMovingStatus)
+        return self._readMotorsData(self.groupSyncReadMovingStatus)
     
 
     def getVelocityTrajectory(self) -> list:
@@ -202,7 +278,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self.readMotorsData(self.groupSyncReadVelocityTrajectory)
+        return self._readMotorsData(self.groupSyncReadVelocityTrajectory)
     
 
     def getPositionTrajectory(self) -> list:
@@ -210,7 +286,7 @@ class MotorGroup:
         Returns:
             list of positions: unit = 1 pulse
         """
-        return self.readMotorsData(self.groupSyncReadPositionTrajectory)
+        return self._readMotorsData(self.groupSyncReadPositionTrajectory)
 
     def open(self) -> None:
         """Open the port and set the baud rate.
@@ -221,14 +297,13 @@ class MotorGroup:
             self.portHandler.openPort()
             self.portHandler.setBaudRate(self.parameters.BAUDRATE)
         except Exception as e:
-            logger.error("[ERROR][MotorGroup]", str(e))
-            self.connected = False
+            raise Exception(f"Failed to open port: {e}")
 
 
     def enableTorque(self):
         """Enable the torque of the motors."""
-        if not self.connected:
-            return
+        if not self.isConnected:
+            raise DisconnectedException()
 
         for DXL_ID in self.parameters.DXL_IDs:
             self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_TORQUE_ENABLE,
@@ -241,9 +316,17 @@ class MotorGroup:
                 self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_TORQUE_ENABLE,
                                                   self.parameters.TORQUE_DISABLE)
             self.portHandler.closePort()
+            self.deviceName = None
         except Exception as e:
-            logger.error("[ERROR][MotorGroup]", str(e))
-            pass
+            raise Exception(f"Failed to close port: {e}")
+
+    def clearPort(self) -> None:
+        """Clear the port."""
+        if not self.isConnected:
+            raise DisconnectedException()
+        
+        if self.portHandler:
+            self.portHandler.clearPort()
 
 
 def _valToArray( val):

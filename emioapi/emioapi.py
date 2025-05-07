@@ -14,7 +14,8 @@ import logging
 import emioapi.motorgroup as MotorGroup
 import emioapi.emiomotorsparameters as EmioParameters
 
-logging.basicConfig(level = logging.INFO)
+FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 __all__ = ["emioapi"]
@@ -55,20 +56,29 @@ class __emioapi:
         return [float(item) / self.rad_to_pulse * 180.0 / 3.1416 for item in pulse]
 
 
-    def openAndConfig(self):
+    def openAndConfig(self) -> bool:
         """Open the connection to the motors, configure it for position mode and enable torque sensing."""
-        if EmioParameters.DEVICENAME is None:
-            return
+        try:
+            self._mg.updateDeviceName()
 
-        self._mg.open()
-        self._mg.setInPositionMode()
-        self._mg.enableTorque()
+            if self._mg.deviceName is None:
+                logger.error("Device name is None. Please check the connection.")
+                return False
+            
+            self._mg.open()
+            self._mg.setInPositionMode()
+            self._mg.enableTorque()
 
-        logger.info(f"Motor group opened and configured. Device name: {EmioParameters.DEVICENAME}")
+            logger.info(f"Motor group opened and configured. Device name: {self._mg.deviceName}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to open and configure the motor group: {e}")
+            return False
 
 
     def close(self):
         """Close the connection to the motors."""
+        logger.info("Closing the connection to the motors.")
         self._mg.close()
 
 
@@ -98,7 +108,6 @@ class __emioapi:
         """Set the goal angles of the motors in radians."""
         self._goal_position = angles
         self._mg.setGoalPosition([int(self.pulse_center - self.rad_to_pulse * a) for a in angles])
-        logging.info(f"Set goal position in pulses: {[int(self.pulse_center - self.rad_to_pulse * a) for a in angles]}")
 
 
     @property
@@ -124,6 +133,11 @@ class __emioapi:
         self._mg.setVelocityProfile(max_vel)
 
     #### Read-only properties ####
+    @property
+    def is_connected(self):
+        """Check if the motors are connected."""
+        return self._mg.isConnected()
+
     @property
     def moving(self):
         """Check if the motors are moving."""
