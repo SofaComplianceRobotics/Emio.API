@@ -67,10 +67,13 @@ class MotorGroup:
     def isConnected(self):
         """Check if the motor group is connected."""
         try:
-            self.groupSyncReadMoving.txRxPacket() # Check if the port is open. This call fails if the port is disconnected.
+            if self.portHandler and self.portHandler.is_open  and self._isDeviceDetected():
+                logger.debug(f"Trying to check connection on {self.deviceName}")
+                # self.groupSyncReadMoving.txRxPacket() # Check if the port is open. This call fails if the port is disconnected.
+                return True
         except Exception as e:
+            logger.exception(f"Failed to check connection: {e}")
             return False
-        return self.portHandler and self.portHandler.is_open  and self._isDeviceDetected()
     
 
     def updateDeviceName(self):
@@ -140,11 +143,11 @@ class MotorGroup:
             Exception: If the motor group is not connected or if the read operation fails.
         """
         if not self.isConnected:
-            raise Exception("MotorGroup is not connected. It is either disconnected or permission denied.")
+            raise DisconnectedException()
     
         dxl_comm_result = groupSyncRead.txRxPacket()
         if dxl_comm_result != COMM_SUCCESS:
-            return None
+            raise Exception(f"Failed to read data from motor: {self.packetHandler.getTxRxResult(dxl_comm_result)}")
         result = list()
 
         for DXL_ID in self.parameters.DXL_IDs:

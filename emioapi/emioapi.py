@@ -13,6 +13,8 @@ import time
 import logging
 import emioapi.motorgroup as MotorGroup
 import emioapi.emiomotorsparameters as EmioParameters
+from threading import Lock
+
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -25,6 +27,7 @@ class __emioapi:
     """Class to control emio motors."""
     def __init__(self):
         """Initialize the EMIO API class with motor group and conversion factors."""
+        self._lock = Lock()
         self._mg = MotorGroup.MotorGroup(EmioParameters)
         self.length_to_rad = 1.0 / 20.0  # 1/radius of the pulley
         self.rad_to_pulse = 4096 / (2 * 3.1416)  # the resolution of the Dynamixel xm430 w210
@@ -58,33 +61,37 @@ class __emioapi:
 
     def openAndConfig(self) -> bool:
         """Open the connection to the motors, configure it for position mode and enable torque sensing."""
-        try:
-            self._mg.updateDeviceName()
+        with self._lock:
+            try:
+                self._mg.updateDeviceName()
 
-            if self._mg.deviceName is None:
-                logger.error("Device name is None. Please check the connection.")
+                if self._mg.deviceName is None:
+                    logger.error("Device name is None. Please check the connection.")
+                    return False
+                
+                self._mg.open()
+                self._mg.clearPort()
+                self._mg.setInPositionMode()
+                self._mg.enableTorque()
+
+                logger.info(f"Motor group opened and configured. Device name: {self._mg.deviceName}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to open and configure the motor group: {e}")
                 return False
-            
-            self._mg.open()
-            self._mg.setInPositionMode()
-            self._mg.enableTorque()
-
-            logger.info(f"Motor group opened and configured. Device name: {self._mg.deviceName}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to open and configure the motor group: {e}")
-            return False
 
 
     def close(self):
         """Close the connection to the motors."""
         logger.info("Closing the connection to the motors.")
-        self._mg.close()
+        with self._lock:
+            self._mg.close()
 
 
     def printStatus(self):
         """Print the current position of the motors."""
-        logger.info(f"Current position of the motors in pulses: {self._mg.getCurrentPosition()}")
+        with self._lock:
+            logger.info(f"Current position of the motors in pulses: {self._mg.getCurrentPosition()}")
 
 
     ### Properties ###
@@ -101,13 +108,15 @@ class __emioapi:
     @property
     def angles(self):
         """Get the current angles of the motors in radians."""
-        return self.pulseToRad(self._mg.getCurrentPosition())
+        with self._lock:
+            return self.pulseToRad(self._mg.getCurrentPosition())
 
     @angles.setter
     def angles(self, angles):
         """Set the goal angles of the motors in radians."""
-        self._goal_position = angles
-        self._mg.setGoalPosition([int(self.pulse_center - self.rad_to_pulse * a) for a in angles])
+        with self._lock:
+            self._goal_position = angles
+            self._mg.setGoalPosition([int(self.pulse_center - self.rad_to_pulse * a) for a in angles])
 
 
     @property
@@ -119,7 +128,8 @@ class __emioapi:
     def goal_velocity(self, velocities):
         """Set the goal velocity (rev/min) of the motors."""
         self._goal_velocity = velocities
-        self._mg.setGoalVelocity(velocities)
+        with self._lock:
+            self._mg.setGoalVelocity(velocities)
 
     @property
     def max_velocity(self):
@@ -130,18 +140,21 @@ class __emioapi:
     def max_velocity(self, max_vel):
         """Set the maximum velocities (rev/min) in position mode."""
         self._max_vel = max_vel
-        self._mg.setVelocityProfile(max_vel)
+        with self._lock:
+            self._mg.setVelocityProfile(max_vel)
 
     #### Read-only properties ####
     @property
     def is_connected(self):
         """Check if the motors are connected."""
-        return self._mg.isConnected()
+        with self._lock:
+            return self._mg.isConnected
 
     @property
     def moving(self):
         """Check if the motors are moving."""
-        return self._mg.isMoving()
+        with self._lock:
+            return self._mg.isMoving()
     
     @property
     def moving_status(self):
@@ -149,22 +162,26 @@ class __emioapi:
         Returns:
          A Byte encoding different informations on the moving status like whether the desired position has been reached or not, if the profile is in progress or not, the kind of Profile used...
         See here https://emanual.robotis.com/docs/en/dxl/x/xc330-t288/#moving-status for more details."""
-        return self._mg.getMovingStatus()
+        with self._lock:
+            return self._mg.getMovingStatus()
     
     @property
     def velocity(self):
         """Get the current velocity (rev/min) of the motors."""
-        return self._mg.getCurrentVelocity()
+        with self._lock:
+            return self._mg.getCurrentVelocity()
     
     @property
     def velocity_trajectory(self):
         """Get the velocity (rev/min) trajectory of the motors."""
-        return self._mg.getVelocityTrajectory()
+        with self._lock:
+            return self._mg.getVelocityTrajectory()
     
     @property
     def position_trajectory(self):
         """Get the position (pulse) trajectory of the motors."""
-        return self._mg.getPositionTrajectory()
+        with self._lock:
+            return self._mg.getPositionTrajectory()
     
 
 emioapi = __emioapi()
