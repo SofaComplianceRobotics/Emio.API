@@ -1,7 +1,7 @@
 import time
 import logging
 import pytest
-from emioapi.emioapi import emioapi
+from emioapi.emioapi import EmioAPI
 
 
 logger = logging.getLogger(__name__)
@@ -10,40 +10,40 @@ logger.setLevel(logging.INFO)
 @pytest.fixture
 def setupBefore():
     """Setup function to be called before each test."""
-    emioapi.openAndConfig()
+    EmioAPI.openAndConfig()
     logger.info("Setup complete.")
 
 @pytest.fixture
 def teardownAfter():
     """Teardown function to be called after each test."""
-    emioapi.close()
+    EmioAPI.close()
     logger.info("Teardown complete.")
 
 def test_main(setupBefore):
 
     initial_pos_pulse = [0] * 4
     logger.info(f"Initial position in pulses: {initial_pos_pulse}")
-    emioapi.printStatus()
+    EmioAPI.printStatus()
 
-    emioapi.max_velocity = [1000] * 4
+    EmioAPI.max_velocity = [1000] * 4
     time.sleep(1)
     new_pos = [3.14/8] * 4
     logger.info(new_pos)
-    emioapi.angles = new_pos
+    EmioAPI.angles = new_pos
 
-    emioapi.printStatus()
+    EmioAPI.printStatus()
     time.sleep(1)
-    emioapi.printStatus()
+    EmioAPI.printStatus()
     new_pos = [3.14/2] * 4
     logger.info(new_pos)
-    emioapi.angles = new_pos
-    logging.info(emioapi.moving)
+    EmioAPI.angles = new_pos
+    logging.info(EmioAPI.moving)
     time.sleep(1)
-    emioapi.printStatus()
-    emioapi.angles = initial_pos_pulse
+    EmioAPI.printStatus()
+    EmioAPI.angles = initial_pos_pulse
     time.sleep(1)
-    emioapi.printStatus()
-    assert (emioapi.angles == emioapi.angles) , "Motor did not return to initial position."
+    EmioAPI.printStatus()
+    assert (EmioAPI.angles == EmioAPI.angles) , "Motor did not return to initial position."
 
 
 if __name__ == "__main__":
@@ -52,4 +52,4 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"An error occurred: {e}")
     finally:
-        emioapi.close()
+        EmioAPI.close()

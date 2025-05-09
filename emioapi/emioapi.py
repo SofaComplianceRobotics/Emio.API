@@ -11,6 +11,7 @@
 
 import time
 import logging
+from dataclasses import field
 import emioapi.motorgroup as MotorGroup
 import emioapi.emiomotorsparameters as EmioParameters
 from threading import Lock
@@ -20,43 +21,89 @@ FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-__all__ = ["emioapi"]
+class EmioAPI:
+    """
+    Singleton class to control emio motors.
+    
+    :::warning 
+    Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
+    :::
+    
+    """
+    _initialized: bool = False
+    _length_to_rad: float = 1.0 / 20.0  # 1/radius of the pulley
+    _rad_to_pulse: int = 4096 / (2 * 3.1416)  # the resolution of the Dynamixel xm430 w210
+    _length_to_pulse: int = _length_to_rad * _rad_to_pulse
+    _pulse_center: int = 2048
+    _max_vel: float = 1000  # *0.01 rev/min
+    _goal_velocity: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
+    _goal_position: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
+    _mg: MotorGroup.MotorGroup = None
 
+    def __new__(cls):
+        """Ensure that only one instance of the class is created."""
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(EmioAPI, cls).__new__(cls)
+        return cls.instance
 
-class __emioapi:
-    """Class to control emio motors."""
     def __init__(self):
-        """Initialize the EMIO API class with motor group and conversion factors."""
         self._lock = Lock()
-        self._mg = MotorGroup.MotorGroup(EmioParameters)
-        self.length_to_rad = 1.0 / 20.0  # 1/radius of the pulley
-        self.rad_to_pulse = 4096 / (2 * 3.1416)  # the resolution of the Dynamixel xm430 w210
-        self.length_to_pulse = self.length_to_rad * self.rad_to_pulse
-        self.pulse_center = 2048
-
-        self._max_vel = 1000  # *0.01 rev/min
-        self._goal_velocity = [0] * len(EmioParameters.DXL_IDs)
-        self._goal_position = [0] * len(EmioParameters.DXL_IDs)
+        if not self._initialized:
+            self._mg = MotorGroup.MotorGroup(EmioParameters)
+            self._initialized = True
 
 
-    def length_to_pulse(self, displacement: list):
-        """Convert length (mm) to pulse using the conversion factor `lengthToPulse`. """
-        return [int(item * self.length_to_pulse) for item in displacement]
+    def _length_to_pulse(self, displacement: list):
+        """
+        Convert length (mm) to pulse using the conversion factor `lengthToPulse`. 
+        
+        Args:
+            displacement: list of length values in mm for each motor.
+
+        Returns:
+            A list of pulse values for each motor.
+        """
+        return [int(item * self._length_to_pulse) for item in displacement]
 
 
     def pulseToLength(self, pulse: list):
-        """Convert pulse to length (mm) using the conversion factor `lengthToPulse`."""
-        return [float(item) / self.length_to_pulse for item in pulse]
+        """
+        Convert pulse to length (mm) using the conversion factor `lengthToPulse`.
+        
+        Args:
+            pulse: list of pulse integer values for each motor.
+
+        Returns:
+            A list of length values in mm for each motor.
+        """
+        return [float(item) / self._length_to_pulse for item in pulse]
 
 
     def pulseToRad(self, pulse: list):
-        """Convert pulse to radians using the conversion factor `radToPulse`."""
-        return [float(item) / self.rad_to_pulse for item in pulse]
+        """
+        Convert pulse to radians using the conversion factor `radToPulse`.
+
+        Args:
+            pulse: list of pulse integer values for each motor.
+
+        Returns:
+            A list of angles in radians for each motor.
+
+        """
+        return [float(item) / self._rad_to_pulse for item in pulse]
 
 
     def pulseToDeg(self, pulse: list):
-        """Convert pulse to degrees using the conversion factor `radToPulse`."""
-        return [float(item) / self.rad_to_pulse * 180.0 / 3.1416 for item in pulse]
+        """
+        Convert pulse to degrees using the conversion factor `radToPulse`.
+
+        Args:
+            pulse: list of pulse values for each motor.
+
+        Returns:
+            A list of angles in degrees for each motor.
+        """
+        return [float(item) / self._rad_to_pulse * 180.0 / 3.1416 for item in pulse]
 
 
     def openAndConfig(self) -> bool:
@@ -100,7 +147,16 @@ class __emioapi:
     #### Read and Write properties ####
     @property
     def relativePos(self, init_pos: list, rel_pos: list):
-        """Calculate the new position of the motors based on the initial position and relative position in pulses."""
+        """
+        Calculate the new position of the motors based on the initial position and relative position in pulses.
+        
+        Args:
+            init_pos: list of initial pulse values for each motor.
+            rel_pos: list of relative pulse values for each motor.
+
+        Returns:
+            A list of new pulse values for each motor.
+        """
         new_pos = []
         for i in range(len(init_pos)):
             new_pos.append(init_pos[i] + rel_pos[i])
@@ -118,7 +174,7 @@ class __emioapi:
         """Set the goal angles of the motors in radians."""
         with self._lock:
             self._goal_position = angles
-            self._mg.setGoalPosition([int(self.pulse_center - self.rad_to_pulse * a) for a in angles])
+            self._mg.setGoalPosition([int(self._pulse_center - self._rad_to_pulse * a) for a in angles])
 
 
     @property
@@ -140,7 +196,10 @@ class __emioapi:
     
     @max_velocity.setter
     def max_velocity(self, max_vel):
-        """Set the maximum velocities (rev/min) in position mode."""
+        """Set the maximum velocities (rev/min) in position mode.
+        Arguments:
+            max_vel: list of maximum velocities for each motor in rev/min.
+        """
         self._max_vel = max_vel
         with self._lock:
             self._mg.setVelocityProfile(max_vel)
@@ -186,4 +245,4 @@ class __emioapi:
             return self._mg.getPositionTrajectory()
     
 
-emioapi = __emioapi()
+emio = EmioAPI()
