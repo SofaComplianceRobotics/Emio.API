@@ -8,51 +8,44 @@ logger = logging.getLogger(__name__)
 # logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger.setLevel(logging.INFO)
 
-def main():
+def main(loops=1):
 
     initial_pos_pulse = [0] * 4
-    logger.info(f"Initial position in rad: {initial_pos_pulse}")
-    emioapi.printStatus()
-
     emioapi.max_velocity = [1000] * 4
-    time.sleep(1)
-    new_pos = [3.14/8] * 4
-    logger.info(new_pos)
-    emioapi.angles = new_pos
-
-    emioapi.printStatus()
-    time.sleep(1)
-    emioapi.printStatus()
-    new_pos = [3.14/2] * 4
-    logger.info(new_pos)
-    emioapi.angles = new_pos
-    logging.info(emioapi.moving)
-    time.sleep(1)
-    emioapi.printStatus()
+    logger.info(f"Initial position in rad: {initial_pos_pulse}")
     emioapi.angles = initial_pos_pulse
     time.sleep(1)
     emioapi.printStatus()
+
+
+    for i in range(loops):
+        new_pos = [((2*3.14)*((i+1)%8)/8)] * 4
+        logger.info(f"new_pos {new_pos}")
+        try:
+            if emioapi.is_connected:
+                emioapi.angles = new_pos
+                time.sleep(1)
+                emioapi.printStatus()
+            else:
+                emioapi.openAndConfig()
+        except Exception as e:
+            logger.error(f"Error during communication: {e}")
+            emioapi.close()
+            emioapi.openAndConfig()
 
 
 if __name__ == "__main__":
     try:
         logger.info("Starting EMIO API test...")
         logger.info("Opening and configuring EMIO API...")
-        emioapi.openAndConfig()
-        logger.info("EMIO API opened and configured.")
-        logger.info("Running main function...")
-        main()
-        logger.info("Main function completed.")
-        logger.info("Closing EMIO API...")
-        emioapi.close()
-        logger.info("EMIO API closed.")
-        logger.info("Reopening and reconfiguring EMIO API...")
-        emioapi.openAndConfig()
-        logger.info("EMIO API reopened and reconfigured.")
-        logger.info("Running main function again...")
-        main()
-        logger.info("Main function completed again.")
+        if emioapi.openAndConfig():
+            logger.info("EMIO API opened and configured.")
+            logger.info("Running main function...")
+            main(15)
+            logger.info("Main function completed.")
+            logger.info("Closing EMIO API...")
+            emioapi.close()
+            logger.info("EMIO API closed.")
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
-    finally:
         emioapi.close()

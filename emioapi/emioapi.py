@@ -61,6 +61,7 @@ class __emioapi:
 
     def openAndConfig(self) -> bool:
         """Open the connection to the motors, configure it for position mode and enable torque sensing."""
+        logger.info("Opening and configuring the motor group.")
         with self._lock:
             try:
                 self._mg.updateDeviceName()
@@ -86,6 +87,7 @@ class __emioapi:
         logger.info("Closing the connection to the motors.")
         with self._lock:
             self._mg.close()
+            logger.info("Connection closed.")
 
 
     def printStatus(self):

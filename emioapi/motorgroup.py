@@ -20,48 +20,51 @@ class MotorGroup:
         self.parameters = parameters
         self.deviceName = None 
 
-        logger.info("Using %s on %s" % (self.parameters.MY_DXL, self.deviceName))
         self.packetHandler = PacketHandler(self.parameters.PROTOCOL_VERSION)
         self.portHandler = PortHandler(self.deviceName)
-        self.groupSyncWritePosition = GroupSyncWrite(self.portHandler, self.packetHandler,
-                                                     self.parameters.ADDR_GOAL_POSITION,
-                                                     self.parameters.LEN_GOAL_POSITION)
-        self.groupSyncWriteVelocity = GroupSyncWrite(self.portHandler, self.packetHandler,
-                                                     self.parameters.ADDR_GOAL_VELOCITY,
-                                                     self.parameters.LEN_GOAL_POSITION)
-        self.groupSyncWriteVelocityProfile = GroupSyncWrite(self.portHandler, self.packetHandler,
-                                                            self.parameters.ADDR_VELOCITY_PROFILE,
-                                                            self.parameters.LEN_GOAL_POSITION)
-        self.groupSyncReadPosition = GroupSyncRead(self.portHandler, self.packetHandler,
-                                                   self.parameters.ADDR_PRESENT_POSITION,
-                                                   self.parameters.LEN_PRESENT_POSITION)
-        self.groupSyncReadGoalVelocity = GroupSyncRead(self.portHandler, self.packetHandler,
-                                                        self.parameters.ADDR_GOAL_VELOCITY,
-                                                        1)
-        self.groupSyncReadVelocity = GroupSyncRead(self.portHandler, self.packetHandler,
+
+        self.groupReaders = {}
+        self.groupWriters = {}
+        
+        self.groupReaders["position"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                        self.parameters.ADDR_PRESENT_POSITION,
+                                                        self.parameters.LEN_PRESENT_POSITION)
+        self.groupReaders["velocity"] = GroupSyncRead(self.portHandler, self.packetHandler,
                                                        self.parameters.ADDR_PRESENT_VELOCITY,
                                                        self.parameters.LEN_PRESENT_VELOCITY)
-        self.groupSyncReadMoving = GroupSyncRead(self.portHandler, self.packetHandler,
-                                                   self.parameters.ADDR_MOVING,
-                                                   1)
-        self.groupSyncReadMovingStatus = GroupSyncRead(self.portHandler, self.packetHandler,
-                                                   self.parameters.ADDR_MOVING_STATUS,
-                                                   1)
-        self.groupSyncReadVelocityTrajectory = GroupSyncRead(self.portHandler, self.packetHandler,
-                                                   self.parameters.ADDR_VELOCITY_TRAJECTORY,
-                                                   self.parameters.LEN_VELOCITY_TRAJECTORY)
-        self.groupSyncReadPositionTrajectory = GroupSyncRead(self.portHandler, self.packetHandler,
-                                                   self.parameters.ADDR_POSITION_TRAJECTORY,
-                                                   self.parameters.LEN_POSITION_TRAJECTORY)
+        self.groupReaders["goal_position"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                            self.parameters.ADDR_GOAL_POSITION,
+                                                            self.parameters.LEN_GOAL_POSITION)
+        self.groupReaders["goal_velocity"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                        self.parameters.ADDR_GOAL_VELOCITY,
+                                                        self.parameters.LEN_GOAL_VELOCITY)
+        self.groupReaders["moving"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                         self.parameters.ADDR_MOVING,
+                                                         1)
+        self.groupReaders["moving_status"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                            self.parameters.ADDR_MOVING_STATUS,
+                                                            1)
+        self.groupReaders["velocity_trajectory"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                            self.parameters.ADDR_VELOCITY_TRAJECTORY,
+                                                            self.parameters.LEN_VELOCITY_TRAJECTORY)
+        self.groupReaders["position_trajectory"] = GroupSyncRead(self.portHandler, self.packetHandler,
+                                                            self.parameters.ADDR_POSITION_TRAJECTORY,
+                                                            self.parameters.LEN_POSITION_TRAJECTORY)
+        
+        self.groupWriters["goal_position"] = GroupSyncWrite(self.portHandler, self.packetHandler,
+                                                            self.parameters.ADDR_GOAL_POSITION,
+                                                            self.parameters.LEN_GOAL_POSITION)
+        self.groupWriters["goal_velocity"] = GroupSyncWrite(self.portHandler, self.packetHandler,
+                                                            self.parameters.ADDR_GOAL_VELOCITY,
+                                                            self.parameters.LEN_GOAL_POSITION)
+        self.groupWriters["velocity_profile"] = GroupSyncWrite(self.portHandler, self.packetHandler,
+                                                                self.parameters.ADDR_VELOCITY_PROFILE,
+                                                                self.parameters.LEN_GOAL_POSITION)
         
         for DXL_ID in self.parameters.DXL_IDs:
-            self.groupSyncReadPosition.addParam(DXL_ID)
-            self.groupSyncReadGoalVelocity.addParam(DXL_ID)
-            self.groupSyncReadVelocity.addParam(DXL_ID)
-            self.groupSyncReadMoving.addParam(DXL_ID)
-            self.groupSyncReadMovingStatus.addParam(DXL_ID)
-            self.groupSyncReadVelocityTrajectory.addParam(DXL_ID)
-            self.groupSyncReadPositionTrajectory.addParam(DXL_ID)
+            for group in self.groupReaders.values():
+                group.addParam(DXL_ID)
+
 
     @property
     def isConnected(self):
@@ -75,13 +78,28 @@ class MotorGroup:
             logger.exception(f"Failed to check connection: {e}")
             return False
     
+    def _updateGroups(self):
+        """
+        Update the port handler with the new device name.
+        """
+        for group in self.groupReaders.values():
+            group.port = self.portHandler
+            group.ph = self.packetHandler
+
+        for group in self.groupWriters.values():
+            group.port = self.portHandler
+            group.ph = self.packetHandler
 
     def updateDeviceName(self):
         """
         Update the device name based on the available ports.
         """
         self.deviceName = self._getDevicePort("FTDI", method="manufacturer")
-        self.portHandler.setPortName(self.deviceName)
+        self.portHandler = PortHandler(self.deviceName)
+        self._updateGroups()
+
+        logger.debug(f"Device name updated to: {self.deviceName}")
+        
         return
     
     def _isDeviceDetected(self):
@@ -119,7 +137,7 @@ class MotorGroup:
         if len(ports) > 1:
             logger.warning("Multiple port found with " + method + " = " + entry + ". Using the first.")
 
-        logger.info("Found port with " + method + " = " + entry + ": \n" +
+        logger.debug("Found port with " + method + " = " + entry + ": \n" +
                     "device : " + ports[0].device + "\n" +
                     "manufacturer : " + ports[0].manufacturer + "\n" +
                     "description : " + ports[0].description + "\n" +
@@ -215,7 +233,7 @@ class MotorGroup:
         Args:
             speeds (list of numbers): unit depends on motor type
         """
-        self.__writeMotorsData(self.groupSyncWriteVelocity, speeds)
+        self.__writeMotorsData(self.groupWriters["goal_velocity"] , speeds)
 
 
     def setGoalPosition(self, positions):
@@ -224,7 +242,7 @@ class MotorGroup:
         Args:
             positions (list of numbers): unit = 1 pulse
         """
-        self.__writeMotorsData(self.groupSyncWritePosition, positions)
+        self.__writeMotorsData(self.groupWriters["goal_position"], positions)
 
 
     def setVelocityProfile(self, max_vel):
@@ -233,7 +251,7 @@ class MotorGroup:
         Args:
             positions (list of numbers): unit depends on the motor type
         """
-        self.__writeMotorsData(self.groupSyncWriteVelocityProfile, max_vel)
+        self.__writeMotorsData(self.groupWriters["velocity_profile"], max_vel)
 
 
     def getCurrentPosition(self) -> list:
@@ -241,15 +259,22 @@ class MotorGroup:
         Returns:
             list of numbers: unit = 1 pulse
         """
-        return self._readMotorsData(self.groupSyncReadPosition)
+        return self._readMotorsData(self.groupReaders["position"])
     
 
+    def getGoalPosition(self) -> list:
+        """Get the goal position of the motors
+        Returns:
+            list of numbers: unit = 1 pulse
+        """
+        return self._readMotorsData(self.groupReaders["goal_position"])
+    
     def getGoalVelocity(self) -> list:
         """Get the goal velocity of the motors
         Returns:
             list of velocities: unit is rev/min
         """
-        return self._readMotorsData(self.groupSyncReadGoalVelocity)
+        return self._readMotorsData(self.groupReaders["goal_velocity"])
     
 
     def getCurrentVelocity(self) -> list:
@@ -257,7 +282,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self._readMotorsData(self.groupSyncReadVelocity)
+        return self._readMotorsData(self.groupReaders["velocity"])
     
 
     def isMoving(self) -> list:
@@ -265,7 +290,7 @@ class MotorGroup:
         Returns:
             list of booleans: True if the motor is moving, False otherwise
         """
-        return self._readMotorsData(self.groupSyncReadMoving)
+        return self._readMotorsData(self.groupReaders["moving"])
     
 
     def getMovingStatus(self) -> list:
@@ -273,7 +298,7 @@ class MotorGroup:
         Returns:
             list of booleans: True if the motor is moving, False otherwise
         """
-        return self._readMotorsData(self.groupSyncReadMovingStatus)
+        return self._readMotorsData(self.groupReaders["moving_status"])
     
 
     def getVelocityTrajectory(self) -> list:
@@ -281,7 +306,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self._readMotorsData(self.groupSyncReadVelocityTrajectory)
+        return self._readMotorsData(self.groupReaders["velocity_trajectory"])
     
 
     def getPositionTrajectory(self) -> list:
@@ -289,7 +314,7 @@ class MotorGroup:
         Returns:
             list of positions: unit = 1 pulse
         """
-        return self._readMotorsData(self.groupSyncReadPositionTrajectory)
+        return self._readMotorsData(self.groupReaders["position_trajectory"])
 
     def open(self) -> None:
         """Open the port and set the baud rate.

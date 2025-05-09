@@ -37,8 +37,9 @@ EXT_POSITION_MODE           = 4
 if MY_DXL == 'X_SERIES' or MY_DXL == 'MX_SERIES': #from https://emanual.robotis.com/docs/en/dxl/x/xm430-w210/
     ADDR_TORQUE_ENABLE          = 64
     ADDR_GOAL_POSITION          = 116
-    ADDR_GOAL_VELOCITY          = 104
     LEN_GOAL_POSITION           = 4         # Data Byte Length
+    ADDR_GOAL_VELOCITY          = 104
+    LEN_GOAL_VELOCITY           = 4         # Data Byte Length
     ADDR_PRESENT_POSITION       = 132
     LEN_PRESENT_POSITION        = 4         # Data Byte Length
     ADDR_PRESENT_VELOCITY       = 128
