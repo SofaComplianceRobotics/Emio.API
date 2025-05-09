@@ -4,8 +4,6 @@ from emioapi.emioapi import emioapi
 
 
 logger = logging.getLogger(__name__)
-# FORMAT = "[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-# logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger.setLevel(logging.INFO)
 
 def main(loops=1):
