@@ -12,8 +12,8 @@
 import time
 import logging
 from dataclasses import field
-import emioapi.motorgroup as MotorGroup
-import emioapi.emiomotorsparameters as EmioParameters
+import emioapi._motorgroup as MotorGroup
+import emioapi._emiomotorsparameters as EmioParameters
 from threading import Lock
 
 
@@ -26,7 +26,9 @@ class EmioAPI:
     Singleton class to control emio motors.
     
     :::warning 
+    
     Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
+
     :::
     
     """

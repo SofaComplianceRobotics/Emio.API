@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import time
 from dynamixel_sdk import *
-import emioapi.emiomotorsparameters as MotorsParametersTemplate
+import emioapi._emiomotorsparameters as MotorsParametersTemplate
 import logging
 
 logger = logging.getLogger(__name__)
