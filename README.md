@@ -6,7 +6,7 @@ Emio API is a simple and easy-to-use API for controling the Emio robot.
 To install the Emio API, you can use pip:
 
 ```bash
-pip install emio-api
+pip install emioapi
 ```
 
 ## Usage
