@@ -1,12 +1,12 @@
 import time
 import logging
-from emioapi import emio
+from emioapi import *
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-def main(loops=1):
+def main(emio, loops=1):
 
     initial_pos_pulse = [0] * 4
     emio.max_velocity = [1000] * 4
@@ -25,24 +25,33 @@ def main(loops=1):
                 time.sleep(1)
                 emio.printStatus()
             else:
-                emio.openAndConfig()
+                emio.connectToEmioDevice()
         except Exception as e:
             logger.error(f"Error during communication: {e}")
             emio.close()
-            emio.openAndConfig()
+            emio.connectToEmioDevice()
 
 
 if __name__ == "__main__":
     try:
         logger.info("Starting EMIO API test...")
         logger.info("Opening and configuring EMIO API...")
-        if emio.openAndConfig():
+        
+        emio = EmioAPI()
+        
+        logger.info(EmioAPI.listEmioDevices())
+        if emio.connectToEmioDevice():
+            logger.info(EmioAPI.listUnusedEmioDevices())
+            
             emio.printStatus()
+
             logger.info("EMIO API opened and configured.")
             logger.info("Running main function...")
-            main(15)
+            main(emio, 15)
+
             logger.info("Main function completed.")
             logger.info("Closing EMIO API...")
+
             emio.close()
             logger.info("EMIO API closed.")
     except Exception as e:

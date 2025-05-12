@@ -1,1 +1,1 @@
-from .emioapi import emio
+from .emioapi import EmioAPI

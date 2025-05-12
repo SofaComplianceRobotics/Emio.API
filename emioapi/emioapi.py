@@ -18,20 +18,22 @@ from threading import Lock
 
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
+logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class EmioAPI:
     """
-    Singleton class to control emio motors.
+    Class to control emio motors.
     
-    :::warning 
-    
+    .. :::warning 
+
     Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
 
     :::
     
     """
+    emio_list = {}  # Dict of all emio devices connected to the computer
+
     _initialized: bool = False
     _length_to_rad: float = 1.0 / 20.0  # 1/radius of the pulley
     _rad_to_pulse: int = 4096 / (2 * 3.1416)  # the resolution of the Dynamixel xm430 w210
@@ -41,6 +43,7 @@ class EmioAPI:
     _goal_velocity: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
     _goal_position: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
     _mg: MotorGroup.MotorGroup = None
+
 
     def __new__(cls):
         """Ensure that only one instance of the class is created."""
@@ -55,7 +58,60 @@ class EmioAPI:
             self._initialized = True
 
 
-    def _length_to_pulse(self, displacement: list):
+    @staticmethod
+    def listEmioDevices() -> list:
+        """
+        List all the emio devices connected to the computer.
+        
+        Returns:
+            A list of device names (the ports).
+        """
+        return MotorGroup.listEmioDevices()
+    
+    
+    @staticmethod
+    def listUnusedEmioDevices() -> list:
+        """
+        List all the emio devices that are not currently used by any instance of EmioAPI in this process.
+        
+        Returns:
+            A list of device names (the ports).
+        """
+        return [device for device in EmioAPI.listEmioDevices() if device not in EmioAPI.emio_list]
+    
+    
+    @staticmethod
+    def listUsedEmioDevices() -> list:
+        """
+        List all the emio devices that are currently used by an instance of EmioAPI in this process.
+        
+        Returns:
+            A list of device names (the ports).
+        """
+        return [device for device in EmioAPI.emio_list.keys()]
+    
+    
+    def connectToEmioDevice(self, device_name: str=None) -> bool:
+        """
+        Connect to the emio device with the given name.
+        
+        Args:
+            device_name: The name of the device to connect to. If None, the first device found that is not used in this process will be the chosen one.
+
+        Returns:
+            True if the connection is successful, False otherwise.
+        """
+        if device_name is None:
+            device_name = EmioAPI.listUnusedEmioDevices()[0] if EmioAPI.listUnusedEmioDevices() else None
+
+        if self._openAndConfig(device_name):
+            EmioAPI.emio_list[self._mg.deviceName] = self
+            logger.info(f"Connected to emio device: {self._mg.deviceName}")
+            return True
+        return False
+
+
+    def lengthToPulse(self, displacement: list):
         """
         Convert length (mm) to pulse using the conversion factor `lengthToPulse`. 
         
@@ -65,7 +121,7 @@ class EmioAPI:
         Returns:
             A list of pulse values for each motor.
         """
-        return [int(item * self._length_to_pulse) for item in displacement]
+        return [int(item * self.length_to_pulse) for item in displacement]
 
 
     def pulseToLength(self, pulse: list):
@@ -78,7 +134,7 @@ class EmioAPI:
         Returns:
             A list of length values in mm for each motor.
         """
-        return [float(item) / self._length_to_pulse for item in pulse]
+        return [float(item) / self.length_to_pulse for item in pulse]
 
 
     def pulseToRad(self, pulse: list):
@@ -108,12 +164,12 @@ class EmioAPI:
         return [float(item) / self._rad_to_pulse * 180.0 / 3.1416 for item in pulse]
 
 
-    def openAndConfig(self) -> bool:
+    def _openAndConfig(self, device_name: str=None) -> bool:
         """Open the connection to the motors, configure it for position mode and enable torque sensing."""
         logger.info("Opening and configuring the motor group.")
         with self._lock:
             try:
-                self._mg.updateDeviceName()
+                self._mg.updateDeviceName(device_name)
 
                 if self._mg.deviceName is None:
                     logger.error("Device name is None. Please check the connection.")
@@ -137,6 +193,7 @@ class EmioAPI:
         with self._lock:
             self._mg.close()
             logger.info("Connection closed.")
+            EmioAPI.emio_list.pop(self._mg.deviceName, None)
 
 
     def printStatus(self):
@@ -245,6 +302,3 @@ class EmioAPI:
         """Get the position (pulse) trajectory of the motors."""
         with self._lock:
             return self._mg.getPositionTrajectory()
-    
-
-emio = EmioAPI()

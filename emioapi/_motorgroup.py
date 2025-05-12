@@ -7,6 +7,63 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def listEmioDevices():
+    """
+    List all the emio devices connected to the computer.
+
+    Returns: 
+        A list containing the devices name (string)
+    """
+    ports = []
+    comports = serial.tools.list_ports.comports()
+    for p in comports:
+        if p.manufacturer is not None and "FTDI" in p.manufacturer:
+            ports.append(p.device)
+        elif p.description is not None and "FTDI" in p.description:
+            ports.append(p.device)
+        elif p.serial_number is not None and "FTDI" in p.serial_number:
+            ports.append(p.device)
+    return ports
+
+def getDevicePort(entry, method="manufacturer"):
+        """
+        Get the device port based on the device name and method. This will get the first FTDI device found.
+
+        Args:
+            entry (str): The name of the device to search for.
+            method (str): The method to use for searching (default is "manufacturer").
+        Returns: 
+            The first port of the device if found, otherwise None.
+        """
+        ports = []
+        comports = serial.tools.list_ports.comports()
+
+        if comports is None or len(comports) == 0:
+            logger.error("Serial ports check failed, list of ports is empty.")
+            return
+
+        if method == "manufacturer":
+            ports = [p for p in comports if p.manufacturer is not None and entry in p.manufacturer]
+        if method == "description":
+            ports = [p for p in comports if p.description is not None and entry in p.description]
+        if method == "serial_number":
+            ports = [p for p in comports if p.serial_number is not None and entry in p.serial_number]
+
+        if not ports:
+            logger.error("No serial port found with " + method + " = " + entry)
+            return
+
+        if len(ports) > 1:
+            logger.warning("Multiple port found with " + method + " = " + entry + ". Using the first.")
+
+        logger.debug("Found port with " + method + " = " + entry + ": \n" +
+                    "device : " + ports[0].device + "\n" +
+                    "manufacturer : " + ports[0].manufacturer + "\n" +
+                    "description : " + ports[0].description + "\n" +
+                    "serial number : " + ports[0].serial_number
+                    )
+        return ports[0].device
+
 class DisconnectedException(Exception):
     """Custom exception for disconnected motors."""
     def __init__(self):
@@ -90,11 +147,12 @@ class MotorGroup:
             group.port = self.portHandler
             group.ph = self.packetHandler
 
-    def updateDeviceName(self):
+    def updateDeviceName(self, device_name: str=None):
         """
-        Update the device name based on the available ports.
+        Update the device name based on the available ports. This will get the first FTDI device found if no device name is provided.
+        If no device is found, the device name will be None.
         """
-        self.deviceName = self._getDevicePort("FTDI", method="manufacturer")
+        self.deviceName = device_name  if device_name is not None else getDevicePort("FTDI", method="manufacturer")
         self.portHandler = PortHandler(self.deviceName)
         self._updateGroups()
 
@@ -107,43 +165,6 @@ class MotorGroup:
             if port.device == self.deviceName:
                 return True
         return False
-
-    
-    def _getDevicePort(self, entry, method="manufacturer"):
-        """
-        Get the device port based on the device name and method.
-        :param entry: The name of the device to search for.
-        :param method: The method to use for searching (default is "manufacturer").
-        :return: The port of the device if found, otherwise None.
-        """
-        ports = []
-        comports = serial.tools.list_ports.comports()
-
-        if comports is None or len(comports) == 0:
-            logger.error("Serial ports check failed, list of ports is empty.")
-            return
-
-        if method == "manufacturer":
-            ports = [p for p in comports if p.manufacturer is not None and entry in p.manufacturer]
-        if method == "description":
-            ports = [p for p in comports if p.description is not None and entry in p.description]
-        if method == "serial_number":
-            ports = [p for p in comports if p.serial_number is not None and entry in p.serial_number]
-
-        if not ports:
-            logger.error("No serial port found with " + method + " = " + entry)
-            return
-
-        if len(ports) > 1:
-            logger.warning("Multiple port found with " + method + " = " + entry + ". Using the first.")
-
-        logger.debug("Found port with " + method + " = " + entry + ": \n" +
-                    "device : " + ports[0].device + "\n" +
-                    "manufacturer : " + ports[0].manufacturer + "\n" +
-                    "description : " + ports[0].description + "\n" +
-                    "serial number : " + ports[0].serial_number
-                    )
-        return ports[0].device
 
     
     def _readMotorsData(self, groupSyncRead:GroupSyncRead):
