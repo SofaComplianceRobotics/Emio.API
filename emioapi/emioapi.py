@@ -23,16 +23,20 @@ logger = logging.getLogger(__name__)
 
 class EmioAPI:
     """
-    Class to control emio motors.
+    Class to control emio motors. 
+    The class is designed to be used with the emio device.
+    The motors are controlled in position mode. The class is thread-safe and can be used in a multi-threaded environment.
+    All the data sent to the motors are list of *4 values* for the *4 motors* of the emio device. The order in the list corresponds to the motor ID's in the emio device.
+    Motor 0 is the first motor in the list, motor 1 is the second motor, etc.
     
-    .. :::warning 
+    :::warning 
 
     Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
 
     :::
     
     """
-    emio_list = {}  # Dict of all emio devices connected to the computer
+    _emio_list = {}  # Dict of all emio devices connected to the computer
 
     _initialized: bool = False
     _length_to_rad: float = 1.0 / 20.0  # 1/radius of the pulley
@@ -43,13 +47,6 @@ class EmioAPI:
     _goal_velocity: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
     _goal_position: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
     _mg: MotorGroup.MotorGroup = None
-
-
-    def __new__(cls):
-        """Ensure that only one instance of the class is created."""
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(EmioAPI, cls).__new__(cls)
-        return cls.instance
 
     def __init__(self):
         self._lock = Lock()
@@ -77,7 +74,7 @@ class EmioAPI:
         Returns:
             A list of device names (the ports).
         """
-        return [device for device in EmioAPI.listEmioDevices() if device not in EmioAPI.emio_list]
+        return [device for device in EmioAPI.listEmioDevices() if device not in EmioAPI._emio_list]
     
     
     @staticmethod
@@ -88,7 +85,7 @@ class EmioAPI:
         Returns:
             A list of device names (the ports).
         """
-        return [device for device in EmioAPI.emio_list.keys()]
+        return [device for device in EmioAPI._emio_list.keys()]
     
     
     def connectToEmioDevice(self, device_name: str=None) -> bool:
@@ -105,7 +102,7 @@ class EmioAPI:
             device_name = EmioAPI.listUnusedEmioDevices()[0] if EmioAPI.listUnusedEmioDevices() else None
 
         if self._openAndConfig(device_name):
-            EmioAPI.emio_list[self._mg.deviceName] = self
+            EmioAPI._emio_list[self._mg.deviceName] = self
             logger.info(f"Connected to emio device: {self._mg.deviceName}")
             return True
         return False
@@ -193,7 +190,7 @@ class EmioAPI:
         with self._lock:
             self._mg.close()
             logger.info("Connection closed.")
-            EmioAPI.emio_list.pop(self._mg.deviceName, None)
+            EmioAPI._emio_list.pop(self._mg.deviceName, None)
 
 
     def printStatus(self):
