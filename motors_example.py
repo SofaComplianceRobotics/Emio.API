@@ -2,16 +2,14 @@ import time
 import logging
 from emioapi import *
 
-
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-def main(emio, loops=1):
+def main(emio: EmioAPI, loops=1):
 
     initial_pos_pulse = [0] * 4
-    emio.max_velocity = [1000] * 4
+    emio.motors.max_velocity = [1000] * 4
     logger.info(f"Initial position in rad: {initial_pos_pulse}")
-    emio.angles = initial_pos_pulse
+    emio.motors.angles = initial_pos_pulse
     time.sleep(1)
     emio.printStatus()
 
@@ -20,15 +18,15 @@ def main(emio, loops=1):
         new_pos = [((2*3.14)*((i+1)%8)/8)] * 4
         logger.info(f"new_pos {new_pos}")
         try:
-            if emio.is_connected:
-                emio.angles = new_pos
+            if emio.motors.is_connected:
+                emio.motors.angles = new_pos
                 time.sleep(1)
-                emio.printStatus()
+                emio.motors.printStatus()
             else:
                 emio.connectToEmioDevice()
         except Exception as e:
             logger.error(f"Error during communication: {e}")
-            emio.close()
+            emio.disconnect()
             emio.connectToEmioDevice()
 
 
@@ -52,8 +50,8 @@ if __name__ == "__main__":
             logger.info("Main function completed.")
             logger.info("Closing EMIO API...")
 
-            emio.close()
+            emio.disconnect()
             logger.info("EMIO API closed.")
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
-        emio.close()
+        emio.disconnect()

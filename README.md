@@ -30,7 +30,5 @@ emio.close()  # Close the port to the Emio robot
 To generate the documentation in a docs folder, you can use the following command:
 
 ```bash
-python -m pdoc --html --output-dir docs emioapi # for html format
---OR--
-python -m pdoc --output-dir docs emioapi # for markdown format
+python -m pydoc-markdown
 ```
