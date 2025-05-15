@@ -8,7 +8,10 @@
 
 name: Upload Python Package
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # nightly job at 3am UTC
 
 permissions:
   contents: read
@@ -16,6 +19,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +37,26 @@ jobs:
           python -m build
           pydoc-markdown
 
+      - name: Set env vars and rename executables
+        shell: bash
+        run: |
+          echo "RELEASE_DATE=$(date +'%Y-%m-%d (at %T UTC)')" >> $GITHUB_ENV
 
+      - name: Create Release
+        if: success() || failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: release-${{ github.ref_name }}
+          fail_on_unmatched_files: false
+          target_commitish: ${{ github.sha }}
+          draft: false
+          body: |
+            Last updated on ${{ env.RELEASE_DATE }}.
+          files: |
+            dist/*
+            emioapi.md
+            
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
