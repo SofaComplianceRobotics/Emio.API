@@ -27,20 +27,25 @@ jobs:
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
-          python -m pip install build
+          python -m pip install build pydoc-markdown
           python -m build
+          pydoc-markdown
+
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4
         with:
           name: release-dists
-          path: dist/
+          path: |
+            dist/
+            emioapi.md
           
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
      needs:
        - build
      runs-on: ubuntu-latest
+     if: startsWith(github.event.ref, 'refs/tags/v')
 
      environment:
        name: testpypi-emioapi

@@ -14,6 +14,9 @@ authors = [
     {name = "Compliance Robotics", email = "support@compliance-robotics.com"}
 ]
 
+[project.urls]
+Repository = "https://github.com/SofaComplianceRobotics/Emio.API"
+
 # Configuration for pydoc-markdown
 
 [[tool.pydoc-markdown.loaders]]
@@ -44,7 +47,4 @@ code_headers = false
 use_fixed_header_levels = false
 render_toc = false
 toc_maxdepth = 4
-
-[project.urls]
-Repository = "https://github.com/SofaComplianceRobotics/Emio.API"
 
