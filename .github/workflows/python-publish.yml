@@ -39,6 +39,20 @@ jobs:
           path: |
             dist/
             emioapi.md
+
+      - name: Create Release
+        if: success() || failure()
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          fail_on_unmatched_files: false
+          target_commitish: ${{ github.sha }}
+          draft: false
+          body: |
+            Last updated on ${{date +'%Y-%m-%d (at %T UTC)' }}.
+          files: |
+            dists/
+            emioapi.md
           
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
