@@ -13,7 +13,7 @@ emio = EmioAPI()
 def test_connection():
     """Setup function to be called before each test."""
 
-    emio.connectToEmioDevice()
+    emio.connectToMotors()
 
     assert EmioAPI.listUnusedEmioDevices() == EmioAPI.listEmioDevices-EmioAPI.listUsedEmioDevices(), "Unused devices found."
 

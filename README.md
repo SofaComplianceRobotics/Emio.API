@@ -10,25 +10,32 @@ python -m pip install emioapi
 ```
 
 ## Usage
-The Emio API provides a single instance of the `Emio` class, which can be used to control the Emio robot. The API provides methods for controlling the robot's motors, sensors, and other features.
-You can look at the [example.py](example.py) file for a simple example of how to use the API.
+The Emio API provides the `EmioAPI` class, which can be used to control the Emio robot. The API provides methods for controlling the robot's motors and camera.
+You can look at the [motors_example.py](motors_example.py) file for a simple example of how to use the API to control the motors of the Emio robot.
+To control the camera, look at the [camera_example.py](camera_example.py) file.
 
 Simple example thaht sets the angles of the motors to 0 radians, waits for 1 second, and then prints the status of the robot:
 ```python
 from emioapi import emio
 
 # Open a port to the Emio robot and configure it
-emio.openAndConfig()
+emio.connectToEmioDevice()
 
-emio.angles = [0] * 4  # Set the angles of the motors to 0 radians
+emio.motors.angles = [0] * 4  # Set the angles of the motors to 0 radians
 time.sleep(1)  # Wait for 1 second
 emio.printStatus() # Print the status of the robot
-emio.close()  # Close the port to the Emio robot
+emio.disconnect()  # Close the connection to the robot
 ```
 
 ## For Developers
-To generate the documentation in a docs folder, you can use the following command:
+The documentation is generated using [pydoc-markdown](https://pypi.org/project/pydoc-markdown/). To generate the documentation, you need to install `pydoc-markdown`:
 
 ```bash
-python -m pydoc-markdown
+python -m pip install pydoc-markdown
+```
+
+Then, you can generate the documentation in a `emioapi.md` file, by using the following command at the root of the project:
+
+```bash
+pydoc-markdown
 ```

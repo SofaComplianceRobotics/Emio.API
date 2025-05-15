@@ -1,14 +1,8 @@
-import threading
-import numpy as np
-import cv2 as cv
-from queue import Queue
-from time import sleep
-
-from time import sleep
 import tkinter as tk
 from tkinter import ttk
+
+import cv2 as cv
 from PIL import ImageTk, Image
-import copy
 
 """
     This class is used to create a camera feed window that displays the video feed from a camera.

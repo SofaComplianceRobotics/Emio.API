@@ -7,7 +7,7 @@ name = "emioapi"
 version = "0.2.0"
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = ["pyserial", "dynamixel_sdk", "pyrealsense2"]
+dependencies = ["pyserial", "dynamixel_sdk", "pyrealsense2", "opencv-python", "numpy", "pillow"]
 description = "An API for controlling  the motors of the EMIO robot."
 keywords = ["roboticsc", "emio", "api"]
 authors = [

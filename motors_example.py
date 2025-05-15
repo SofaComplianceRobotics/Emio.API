@@ -23,11 +23,11 @@ def main(emio: EmioAPI, loops=1):
                 time.sleep(1)
                 emio.motors.printStatus()
             else:
-                emio.connectToEmioDevice()
+                emio.motors.open()
         except Exception as e:
             logger.error(f"Error during communication: {e}")
-            emio.disconnect()
-            emio.connectToEmioDevice()
+            emio.motors.close()
+            emio.motors.open()
 
 
 if __name__ == "__main__":
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         emio = EmioAPI()
         
         logger.info(EmioAPI.listEmioDevices())
-        if emio.connectToEmioDevice():
+        if emio.motors.open(): 
             logger.info(EmioAPI.listUnusedEmioDevices())
             
             emio.printStatus()
@@ -50,8 +50,8 @@ if __name__ == "__main__":
             logger.info("Main function completed.")
             logger.info("Closing EMIO API...")
 
-            emio.disconnect()
+            emio.motors.close()
             logger.info("EMIO API closed.")
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
-        emio.disconnect()
+        emio.motors.close()

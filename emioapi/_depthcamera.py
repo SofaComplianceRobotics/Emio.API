@@ -8,10 +8,10 @@ from tkinter import ttk
 import numpy as np
 import cv2 as cv
 import pyrealsense2 as rs
-from scipy import signal
-from PIL import ImageTk, Image
 
 from ._camerafeedwindow import CameraFeedWindow
+
+logger = logging.getLogger(__name__)
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 
@@ -117,13 +117,15 @@ class DepthCamera:
             try:
                 with open(CONFIG_FILENAME, 'r') as fp:
                     self.parameter = json.load(fp)
-                    logging.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
+                    logger.debug(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                logging.warning(f'Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
+                logger.warning(f'Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
                 self.parameter = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
         default_param = self.parameter.copy()
-        self.show_video_feed = show_video_feed
+
+
+        logger.debug(f'Camera show_video_feed: {self.show_video_feed}')
 
         if self.show_video_feed:        
             self.rootWindow = tk.Tk()
@@ -196,7 +198,7 @@ class DepthCamera:
         color_frame = aligned_frame.get_color_frame()
 
         if not depth_frame or not color_frame:
-            print('no frame')
+            logger.debug('no frame')
             return False, color_frame, depth_frame
 
         # Convert images to numpy arrays

@@ -26,22 +26,36 @@ logger = logging.getLogger(__name__)
 class EmioAPI:
     """
     Class to control emio motors. 
-    The class is designed to be used with the emio device.
-    The motors are controlled in position mode. The class is thread-safe and can be used in a multi-threaded environment.
-    All the data sent to the motors are list of *4 values* for the *4 motors* of the emio device. The order in the list corresponds to the motor ID's in the emio device.
-    Motor 0 is the first motor in the list, motor 1 is the second motor, etc.
+    It is essentially divided into two objects:
+    - The `motors` object (`EmioMotors` class), which is used to control the motors.
+    - The `camera` object (`EmioCamera` class), which is used to control the camera.
+
+    The EmioAPI class is the main class that combines both classes and provides a simple interface to control the emio device.
+    It also provides static utility methods to list the emio devices connected to the computer.
     
-    :::warning 
+    Motors:
+        > The motors are controlled in position mode. The class is thread-safe and can be used in a multi-threaded environment.
+        > All the data sent to the motors are list of *4 values* for the *4 motors* of the emio device. The order in the list corresponds to the motor ID's in the emio device.
+        > Motor 0 is the first motor in the list, motor 1 is the second motor, etc.
+        > You can open a connection directly to the motors using the `open` method of the `motors` object.
+        > 
+        > :::warning 
+        > 
+        > Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
+        > 
+        > :::
 
-    Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
-
-    :::
+    Camera:
+        > The camera is controlled in a separate process. The camera is used to track objects and compute the point cloud.
+        > The camera parameters are stored in a config file. If the config file is not found, default values are used.
+        > The camera can be configured to show the frames, track objects, and compute the point cloud.
+        > You can open a connection directly to the camera using the `open` method of the `camera` object.
     
     """
     _emio_list = {}  # Dict of all emio devices connected to the computer
-    motors = None  # The emio motors object
-    camera = None  # The emio camera object
-    camera_parameters = None  # The camera parameters object
+    motors: EmioMotors = None  # The emio motors object
+    camera: EmioCamera = None  # The emio camera object
+    camera_parameters: dict = None  # The camera parameters object
 
     def __init__(self, camera_parameters=None):
         self._lock = Lock()
@@ -98,18 +112,26 @@ class EmioAPI:
 
         if self.motors.open(device_name):
             EmioAPI._emio_list[self.motors.device_name] = self
-            logger.info(f"Connected to emio device: {self.motors.device_name}")
-            return True
+            logger.info(f"Connected to emio motors: {self.motors.device_name}")
+
+            if self.camera.open():
+                logger.info(f"Connected to emio camera")
+                return True
         return False
     
 
     def disconnect(self):
-        """Close the connection to all"""
-        logger.debug("Closing the connection to the motors.")
+        """Close the connection to motors and camera."""
+        logger.debug("Closing the connection to the motors and camera.")
         with self._lock:
             self.motors.close()
-            logger.info("Connection closed.")
+            logger.debug("Motors connection closed.")
+
+            self.camera.close()
+            logger.debug("Camera closed.")
+
             EmioAPI._emio_list.pop(self.motors.device_name, None)
+            logger.info(f"Disconnected from emio device: {self.motors.device_name}")
 
 
     def printStatus(self):

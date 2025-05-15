@@ -141,6 +141,7 @@ class EmioCamera:
             value: bool: The new show status.
         """
         self._show.value = value
+        logger.info(f"Show frames set to {self._show.value}")
 
     
     @property
@@ -156,7 +157,21 @@ class EmioCamera:
     @parameters.setter
     def parameters(self, value):
         """
-        Set the camera parameters.
+        Set the camera tracking parameters:
+            - hue_h: int: The upper hue value.
+            - hue_l: int: The lower hue value.
+            - sat_h: int: The upper saturation value.
+            - sat_l: int: The lower saturation value.
+            - value_h: int: The upper value value.
+            - value_l: int: The lower value value.
+            - erosion_size: int: The size of the erosion kernel.
+            - area: int: The minimum area of the detected objects.
+
+        :::warning
+        - The camera parameters are not saved to a file. You need to save them manually.
+        - The paramters are set when opening the camera. To change the parameters programatically, you need to close the camera and open it again with the wanted parameters.
+        :::
+
         Args:
             value: dict: The new camera parameters.
         """
@@ -234,7 +249,7 @@ class EmioCamera:
         del self_dict['_manager']
         return self_dict
 
-    def openCamera(self):
+    def open(self) -> bool:
         """
         Initialize and open the camera in another process.
         This function creates a new process to handle the camera and starts it.
@@ -258,8 +273,12 @@ class EmioCamera:
         while not self._running.value:
             time.sleep(0.5)
             if time.time() > timeout:
-                raise TimeoutError("Camera process did not start in time.")
+                logger.error("Camera process did not start within the timeout period. Exiting.")
+                self.close()
+                return False
             continue
+
+        return True
 
 
     def _processCamera(self, running: Synchronized, tracking: Synchronized, show: Synchronized, 
@@ -278,9 +297,11 @@ class EmioCamera:
             hsv_frame: list: A list to store the HSV frame.
             mask_frame: list: A list to store the mask frame.
         """
-        camera = DepthCamera(parameter=parameter, compute_point_cloud=compute_point_cloud, show_video_feed=show, tracking=tracking)
+
+        logger.debug("Starting camera process with show: {}, tracking: {}, compute_point_cloud: {}".format(show.value, tracking.value, compute_point_cloud.value))
+        camera = DepthCamera(parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
         running.value = True
-        for _ in range(200):
+        while running.value:
             camera.update()
 
             with self._lock_camera:
@@ -301,7 +322,7 @@ class EmioCamera:
         running.value = False
 
         
-    def closeCamera(self):
+    def close(self):
         """
         Close the camera and terminate the process. Sets the running status to False.
         """

@@ -13,22 +13,32 @@ logger = logging.getLogger(__name__)
 def main():
     emio = EmioAPI()
 
+    # Camera     
     emio.camera.show_frames = False # Show camera frames. Default is False.
     emio.camera.track_markers = True # Track objects. Default is True.
     emio.camera.compute_point_cloud = True # Compute point cloud. Default is False.
 
     # Camera tracking parameters. If None, a config file is read. If there is no config file, default values are used {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
-    emio.camera.parameters = None 
+    emio.camera.parameters = None
 
     try:
-        if emio.camera.open(): # Open the camera with the current parameters. This will start the camera process.
-            logger.info("Camera opened successfully.")
+        if emio.connectToEmioDevice():  # Open the camera with the current parameters. This will start the camera process.
+            logger.info("Successfully connected to Emio.")
+
+            #  Motors
+            initial_pos_pulse = [0] * 4
+            logger.info(f"Initial position in rad: {initial_pos_pulse}")
+            emio.motors.max_velocity = [1000] * 4
+            emio.motors.angles = initial_pos_pulse
+            time.sleep(1)
+            emio.printStatus()
 
             i = 0
-            while i<20:
+            while i<10:
                 time.sleep(1)
                 print("--" * 20)
-                # all properties of the emiocamera
+
+                # camera
                 logger.info(f"Camera parameters: {emio.camera.parameters}")
                 logger.info(f"Camera show: {emio.camera.show_frames}")
                 logger.info(f"Camera tracking: {emio.camera.track_markers}")
@@ -39,7 +49,19 @@ def main():
                 logger.info(f"HSV Frame shape: {emio.camera.hsv_frame.shape}")
                 logger.info(f"Mask Frame shape: {emio.camera.mask_frame.shape}")
 
+                print("")
+
+                #  Motors
+                new_pos = [((2*3.14)*((i+1)%8)/8)] * 4
+                logger.info(f"new_pos {new_pos}")
+
+                if emio.motors.is_connected:
+                    emio.motors.angles = new_pos
+                    emio.motors.printStatus()
+
                 i += 1
+        
+        emio.disconnect()
 
 
     except KeyboardInterrupt:
@@ -48,7 +70,7 @@ def main():
         return
     except Exception as e:
         logger.exception(f"Failed running camera: {e}")
-        emio.camera.close()
+        emio.close()
         return
 
 
@@ -56,7 +78,7 @@ if __name__ == "__main__":
     try:
         logger.info("Starting EMIO API test...")
         main()
-        logger.info("EMIO API test completed successfully.")
+        logger.info("EMIO API example completed successfully.")
 
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
