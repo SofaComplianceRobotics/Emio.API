@@ -52,7 +52,7 @@ jobs:
           body: |
             Last updated on $(date +'%Y-%m-%d (at %T UTC)').
           files: |
-            dists/
+            dist/
             emioapi.md
           
   publish-to-testpypi:
