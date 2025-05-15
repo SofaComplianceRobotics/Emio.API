@@ -31,7 +31,7 @@ emio.disconnect()  # Close the connection to the robot
 The documentation is generated using [pydoc-markdown](https://pypi.org/project/pydoc-markdown/). To generate the documentation, you need to install `pydoc-markdown`:
 
 ```bash
-python -m pip install pydoc-markdown
+pipx install pydoc-markdown
 ```
 
 Then, you can generate the documentation in a `emioapi.md` file, by using the following command at the root of the project:
