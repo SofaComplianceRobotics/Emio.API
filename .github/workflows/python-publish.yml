@@ -42,14 +42,14 @@ jobs:
 
       - name: Create Release
         if: success() || failure()
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           fail_on_unmatched_files: false
           target_commitish: ${{ github.sha }}
           draft: false
           body: |
-            Last updated on ${{date +'%Y-%m-%d (at %T UTC)' }}.
+            Last updated on $(date +'%Y-%m-%d (at %T UTC)').
           files: |
             dists/
             emioapi.md
