@@ -1,0 +1,8 @@
+dynamixel_sdk
+numpy==1.26.4
+pyrealsense2
+pyserial
+pydoc-markdown
+pillow
+opencv-python
+

@@ -3,9 +3,6 @@ import logging
 from dataclasses import field
 from threading import Lock
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import emioapi._motorgroup as MotorGroup
 import emioapi._emiomotorsparameters as EmioParameters
 

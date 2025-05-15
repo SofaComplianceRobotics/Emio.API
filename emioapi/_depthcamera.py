@@ -289,12 +289,3 @@ class DepthCamera:
             self.update()
 
         self.close()
-
-
-def main():
-    algo = DepthCamera(comp_point_cloud=True)
-    algo.run_loop()
-
-
-if __name__ == '__main__':
-    main()
