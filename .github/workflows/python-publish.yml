@@ -31,15 +31,6 @@ jobs:
           python -m build
           pydoc-markdown
 
-
-      - name: Upload distributions
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-dists
-          path: |
-            dist/
-            emioapi.md
-
       - name: Create Release
         if: success() || failure()
         uses: softprops/action-gh-release@v2
@@ -52,6 +43,14 @@ jobs:
           body: |
             Last updated on $(date +'%Y-%m-%d (at %T UTC)').
           files: |
+            dist/*
+            emioapi.md
+            
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: |
             dist/
             emioapi.md
           
