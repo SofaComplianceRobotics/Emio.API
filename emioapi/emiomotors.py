@@ -6,7 +6,6 @@ from threading import Lock
 import emioapi._motorgroup as MotorGroup
 import emioapi._emiomotorsparameters as EmioParameters
 
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logger = logging.getLogger(__name__)
 
 class EmioMotors:
@@ -42,7 +41,7 @@ class EmioMotors:
         Returns:
             A list of pulse values for each motor.
         """
-        return [int(item * self.length_to_pulse) for item in displacement]
+        return [int(item * self._length_to_pulse) for item in displacement]
 
 
     def pulseToLength(self, pulse: list):
@@ -55,7 +54,7 @@ class EmioMotors:
         Returns:
             A list of length values in mm for each motor.
         """
-        return [float(item) / self.length_to_pulse for item in pulse]
+        return [float(item) / self._length_to_pulse for item in pulse]
 
 
     def pulseToRad(self, pulse: list):

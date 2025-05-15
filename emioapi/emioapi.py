@@ -11,12 +11,12 @@ from dataclasses import field
 
 from threading import Lock
 
-from emioapi.emiomotors import *
+from emioapi.emiomotors import EmioMotors, MotorGroup
 from emioapi.emiocamera import EmioCamera
 
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EmioAPI:
