@@ -14,21 +14,26 @@ authors = [
     {name = "Compliance Robotics", email = "support@compliance-robotics.com"}
 ]
 
+# Configuration for pydoc-markdown
+
 [[tool.pydoc-markdown.loaders]]
-type = python
+type = "python"
 
-[[tool.pydoc-markdown.processors.filter]]
-
-[tool.pydoc-markdown.processors.filter]
-type = filter
+[[tool.pydoc-markdown.processors]]
+type = "filter"
 skip_empty_modules = true
 exclude_private = true
-expression = not name.startswith('_') and default()
+expression = "not name.startswith('_') and '_' not in obj.location.filename and default()"
 
+[[tool.pydoc-markdown.processors]]
+type="smart"
+
+[[tool.pydoc-markdown.processors]]
+type="crossref"
 
 [tool.pydoc-markdown.renderer]
-type = markdown
-filename = emioapi.md
+type = "markdown"
+filename = "emioapi.md"
 descriptive_class_title = false
 descriptive_module_title = false
 insert_header_anchors = true

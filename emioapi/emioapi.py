@@ -41,11 +41,13 @@ class EmioAPI:
     _emio_list = {}  # Dict of all emio devices connected to the computer
     motors = None  # The emio motors object
     camera = None  # The emio camera object
+    camera_parameters = None  # The camera parameters object
 
-    def __init__(self):
+    def __init__(self, camera_parameters=None):
         self._lock = Lock()
+        self.camera_parameters = camera_parameters
         self.motors = EmioMotors()
-        self.camera = EmioCamera()
+        self.camera = EmioCamera(self, parameter=camera_parameters)
 
 
     @staticmethod

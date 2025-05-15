@@ -78,9 +78,11 @@ class DepthCamera:
     maskWindow = None
     hsvWindow = None
     rootWindow = None
+    hsvFrame = None
+    maskFrame = None
 
 
-    def __init__(self, parameter=None, comp_point_cloud=False, show_video_feed=False, tracking=True) -> None:
+    def __init__(self, parameter=None, compute_point_cloud=False, show_video_feed=False, tracking=True) -> None:
         """
         Initialize the camera and the parameters.
 
@@ -96,7 +98,7 @@ class DepthCamera:
         """
         self.tracking = tracking
         self.show_video_feed = show_video_feed
-        self.compute_point_cloud = comp_point_cloud
+        self.compute_point_cloud = compute_point_cloud
 
 
         self.initialized = True
@@ -115,17 +117,11 @@ class DepthCamera:
             try:
                 with open(CONFIG_FILENAME, 'r') as fp:
                     self.parameter = json.load(fp)
+                    logging.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                self.parameter = {'hue_h': 176,
-                                  'hue_l': 120,
-                                  'sat_h': 255,
-                                  'sat_l': 116,
-                                  'value_h': 255,
-                                  'value_l': 50,
-                                  'erosion_size': 1,
-                                  'area': 1,
-                                  }
+                logging.warning(f'Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
+                self.parameter = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
         default_param = self.parameter.copy()
         self.show_video_feed = show_video_feed
 
@@ -174,9 +170,8 @@ class DepthCamera:
         try:
             self.pipeline_profile = self.config.resolve(self.pipeline_wrapper)
         except RuntimeError as err:
-            logger.error('DepthCamera', str(err))
             self.initialized = False
-            return
+            raise Exception('DepthCamera', str(err))
 
         self.device = self.pipeline_profile.get_device()
 
@@ -220,7 +215,7 @@ class DepthCamera:
             return
         # if frame is read correctly ret is True
 
-        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        self.hsvFrame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
         # color definition
         red_lower = np.array(
@@ -229,7 +224,7 @@ class DepthCamera:
             [self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
 
         # red color mask (sort of thresholding, actually segmentation)
-        mask = cv.inRange(hsv, red_lower, red_upper)
+        mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
         mask2 = cv.inRange(depth_image, 2, 430)
 
         mask = cv.bitwise_and(mask, mask2, mask=mask)
@@ -241,6 +236,8 @@ class DepthCamera:
 
         mask = cv.erode(mask, element, iterations=3)
         mask = cv.dilate(mask, element, iterations=3)
+
+        self.maskFrame = cv.bitwise_and(frame, frame, mask=mask)
 
         if self.tracking:
             contours, _ = cv.findContours(
@@ -256,7 +253,7 @@ class DepthCamera:
                             (depth_image[y, x]), x, y, self.intr))
                         
                         if self.show_video_feed:
-                            cv.drawContours(hsv, contours[i], -1, (255, 255, 0), 3)                    
+                            cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                    
 
         if self.compute_point_cloud:
             points = self.pc.calculate(depth_frame)
@@ -264,13 +261,13 @@ class DepthCamera:
             self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
         if self.show_video_feed:
-            res = cv.bitwise_and(frame, frame, mask=mask)
+            # res = cv.bitwise_and(frame, frame, mask=mask)
             if self.maskWindow.running:
-                self.maskWindow.set_frame(res)
+                self.maskWindow.set_frame(self.maskFrame)
             # image = ImageTk.PhotoImage(image=Image.fromarray(cv.cvtColor(hsv, cv.COLOR_BGR2RGB)))
 
             if self.hsvWindow.running:
-                self.hsvWindow.set_frame(hsv)
+                self.hsvWindow.set_frame(self.hsvFrame)
 
             self.rootWindow.update()
 
