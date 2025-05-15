@@ -40,7 +40,7 @@ jobs:
       - name: Set env vars and rename executables
         shell: bash
         run: |
-          RELEASE_DATE="$(date +'%Y-%m-%d (at %T UTC)')"
+          echo "RELEASE_DATE=$(date +'%Y-%m-%d (at %T UTC)')" >> $GITHUB_ENV
 
       - name: Create Release
         if: success() || failure()
@@ -52,7 +52,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           draft: false
           body: |
-            Last updated on ${{ env.RELEASE_DATE}}.
+            Last updated on ${{ env.RELEASE_DATE }}.
           files: |
             dist/*
             emioapi.md
