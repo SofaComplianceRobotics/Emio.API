@@ -55,7 +55,7 @@ jobs:
             Last updated on ${{ env.RELEASE_DATE }}.
           files: |
             dist/*
-            emioapi.md
+            emio-api.md
             
       - name: Upload distributions
         uses: actions/upload-artifact@v4
@@ -63,7 +63,7 @@ jobs:
           name: release-dists
           path: |
             dist/
-            emioapi.md
+            emio-api.md
           
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
