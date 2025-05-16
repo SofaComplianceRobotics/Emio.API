@@ -22,7 +22,7 @@ class EmioCamera:
 
     
     """
-    _lock = threading.Lock= threading.Lock()
+    _lock = threading.Lock()
     _compute_point_cloud: bool = False
     _camera: DepthCamera = None
     _tracking: bool = True
@@ -250,7 +250,7 @@ class EmioCamera:
             if self._camera:
                 self._camera.close()
             self._running = False
-            logger.error("Error opening camera"+str(e))
+            logger.error("Error opening camera: "+str(e))
             return False
 
     def update(self):

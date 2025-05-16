@@ -120,8 +120,9 @@ class DepthCamera:
                     logger.debug(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                logger.warning(f'Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
+                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
                 self.parameter = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
+        
         default_param = self.parameter.copy()
 
 

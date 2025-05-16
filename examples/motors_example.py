@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 def main(emio: EmioMotors, loops=1):
 
     initial_pos_pulse = [0] * 4
-    emio.motors.max_velocity = [1000] * 4
+    emio.max_velocity = [1000] * 4
     logger.info(f"Initial position in rad: {initial_pos_pulse}")
-    emio.motors.angles = initial_pos_pulse
+    emio.angles = initial_pos_pulse
     time.sleep(1)
     emio.printStatus()
 
@@ -21,16 +21,16 @@ def main(emio: EmioMotors, loops=1):
         new_pos = [((2*3.14)*((i+1)%8)/8)] * 4
         logger.info(f"new_pos {new_pos}")
         try:
-            if emio.motors.is_connected:
-                emio.motors.angles = new_pos
+            if emio.is_connected:
+                emio.angles = new_pos
                 time.sleep(1)
-                emio.motors.printStatus()
+                emio.printStatus()
             else:
-                emio.motors.open()
+                emio.open()
         except Exception as e:
             logger.error(f"Error during communication: {e}")
-            emio.motors.close()
-            emio.motors.open()
+            emio.close()
+            emio.open()
 
 
 if __name__ == "__main__":
