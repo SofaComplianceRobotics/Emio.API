@@ -45,7 +45,7 @@ type="crossref"
 
 [tool.pydoc-markdown.renderer]
 type = "markdown"
-filename = "emioapi.md"
+filename = "emio-api.md"
 descriptive_class_title = false
 descriptive_module_title = false
 render_page_title = false

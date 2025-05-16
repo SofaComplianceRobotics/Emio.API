@@ -49,13 +49,12 @@ jobs:
           name: ${{ github.ref_name }}
           tag_name: release-${{ github.ref_name }}
           fail_on_unmatched_files: false
-          target_commitish: ${{ github.sha }}
           draft: false
           body: |
             Last updated on ${{ env.RELEASE_DATE }}.
           files: |
             dist/*
-            emioapi.md
+            emio-api.md
             
       - name: Upload distributions
         uses: actions/upload-artifact@v4
@@ -63,7 +62,7 @@ jobs:
           name: release-dists
           path: |
             dist/
-            emioapi.md
+            emio-api.md
           
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
