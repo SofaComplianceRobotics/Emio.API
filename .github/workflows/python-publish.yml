@@ -36,6 +36,7 @@ jobs:
           python -m pip install build pydoc-markdown
           python -m build
           pydoc-markdown
+          sed -i "1s/.*/# Emio API/" emio-api.md
 
       - name: Set env vars and rename executables
         shell: bash
