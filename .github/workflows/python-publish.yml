@@ -49,7 +49,6 @@ jobs:
           name: ${{ github.ref_name }}
           tag_name: release-${{ github.ref_name }}
           fail_on_unmatched_files: false
-          target_commitish: ${{ github.sha }}
           draft: false
           body: |
             Last updated on ${{ env.RELEASE_DATE }}.
