@@ -8,7 +8,7 @@ import os
 import numpy as np
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/..')
-from emioapi.multiprocessemiocamera import MultiprocessEmioCamera
+from emioapi import MultiprocessEmioCamera
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -33,9 +33,7 @@ def main():
             while i<20:
                 time.sleep(1)
                 print("--" * 20)
-
-                if i==5:
-                    emio.show_frames=True
+                
                 # all properties of the emiocamera
                 logger.info(f"Camera parameters: {emio.parameters}")
                 logger.info(f"Camera show: {emio.show_frames}")

@@ -26,6 +26,29 @@ class MultiprocessEmioCamera:
     If you want to use the camera in a SOFA scene, use the not-paralelized version of the class: [EmioCamera](#EmioCamera)
     :::
 
+    Example:
+        ```python
+        from emioapi import MultiprocessEmioCamera
+
+        # Initialize the camera with default parameters
+        camera = MultiprocessEmioCamera(show=True, tracking=True, compute_point_cloud=True)
+
+        # Open the camera (starts the camera process)
+        if camera.open():
+            print("Camera started successfully.")
+
+            # Access tracker positions and point cloud in a loop
+            for _ in range(10):
+                print("Trackers positions:", camera.trackers_pos)
+                print("Point cloud shape:", camera.point_cloud.shape if camera.point_cloud is not None else None)
+                time.sleep(1)
+
+            # Close the camera process
+            camera.close()
+            print("Camera closed.")
+        else:
+            print("Failed to start camera.")
+        ```
     
     """
     _compute_point_cloud: Synchronized = None

@@ -2,8 +2,11 @@
 
 import time
 import logging
-from emioapi import EmioAPI
-from emioapi.emiomotors import EmioMotors
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/..')
+from emioapi import EmioMotors
 
 logger = logging.getLogger(__name__)
 
