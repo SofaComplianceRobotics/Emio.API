@@ -12,6 +12,7 @@ from dataclasses import field
 from threading import Lock
 
 from emioapi.emiomotors import EmioMotors, MotorGroup
+from emioapi.multiprocessemiocamera import MultiprocessEmioCamera
 from emioapi.emiocamera import EmioCamera
 
 
@@ -50,14 +51,13 @@ class EmioAPI:
     """
     _emio_list = {}  # Dict of all emio devices connected to the computer
     motors: EmioMotors = None  # The emio motors object
-    camera: EmioCamera = None  # The emio camera object
+    camera: MultiprocessEmioCamera | EmioCamera = None  # The emio camera object
     camera_parameters: dict = None  # The camera parameters object
 
-    def __init__(self, camera_parameters=None):
+    def __init__(self, multiprocess_camera=False):
         self._lock = Lock()
-        self.camera_parameters = camera_parameters
         self.motors = EmioMotors()
-        self.camera = EmioCamera(self, parameter=camera_parameters)
+        self.camera = MultiprocessEmioCamera() if multiprocess_camera else EmioCamera()
 
 
     @staticmethod

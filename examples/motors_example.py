@@ -2,11 +2,12 @@
 
 import time
 import logging
-from emioapi import *
+from emioapi import EmioAPI
+from emioapi.emiomotors import EmioMotors
 
 logger = logging.getLogger(__name__)
 
-def main(emio: EmioAPI, loops=1):
+def main(emio: EmioMotors, loops=1):
 
     initial_pos_pulse = [0] * 4
     emio.motors.max_velocity = [1000] * 4
@@ -37,23 +38,21 @@ if __name__ == "__main__":
         logger.info("Starting EMIO API test...")
         logger.info("Opening and configuring EMIO API...")
         
-        emio = EmioAPI()
+        emio_motors = EmioMotors()
         
-        logger.info(EmioAPI.listEmioDevices())
-        if emio.motors.open(): 
-            logger.info(EmioAPI.listUnusedEmioDevices())
+        if emio_motors.open(): 
             
-            emio.printStatus()
+            emio_motors.printStatus()
 
-            logger.info("EMIO API opened and configured.")
+            logger.info("Emio motors opened and configured.")
             logger.info("Running main function...")
-            main(emio, 15)
+            main(emio_motors, 15)
 
             logger.info("Main function completed.")
-            logger.info("Closing EMIO API...")
+            logger.info("Closing Emio motor connection...")
 
-            emio.motors.close()
-            logger.info("EMIO API closed.")
+            emio_motors.close()
+            logger.info("EEmio connection closed.")
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
-        emio.motors.close()
+        emio_motors.close()

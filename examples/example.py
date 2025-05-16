@@ -2,9 +2,12 @@
 
 import time
 import logging
+import os
+import sys
 
 import numpy as np
 
+sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/..')
 from emioapi.emioapi import EmioAPI
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
@@ -24,8 +27,12 @@ def main():
     emio.camera.parameters = None
 
     try:
+        logger.info(EmioAPI.listEmioDevices())
         if emio.connectToEmioDevice():  # Open the camera with the current parameters. This will start the camera process.
             logger.info("Successfully connected to Emio.")
+            
+            logger.info(EmioAPI.listUsedEmioDevices()) # list all the used Emio devices
+            logger.info(EmioAPI.listUnusedEmioDevices()) # list all the unused Emio devices
 
             #  Motors
             initial_pos_pulse = [0] * 4
@@ -41,6 +48,7 @@ def main():
                 print("--" * 20)
 
                 # camera
+                emio.camera.update()
                 logger.info(f"Camera parameters: {emio.camera.parameters}")
                 logger.info(f"Camera show: {emio.camera.show_frames}")
                 logger.info(f"Camera tracking: {emio.camera.track_markers}")

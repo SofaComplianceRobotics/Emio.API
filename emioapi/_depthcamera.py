@@ -128,24 +128,27 @@ class DepthCamera:
         logger.debug(f'Camera show_video_feed: {self.show_video_feed}')
 
         if self.show_video_feed:        
-            self.rootWindow = tk.Tk()
-            self.rootWindow.resizable(False, False)
-            # self.rootWindow.tk.call("source", os.path.abspath("../../parts\controllers/azure_ttk_theme/azure.tcl")) # https://github.com/rdbende/Azure-ttk-theme
-            # self.rootWindow.tk.call("set_theme", "light")
-
-            self.rootWindow.title("Camera Feed Manager")
-            ttk.Button(self.rootWindow, text="Quit", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
-            ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
-            ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-            ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-
-            self.createMaskWindow()
-            self.createHSVWindow()
-
-            self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
-            self.rootWindow.update_idletasks()
+            self.createWindows()
 
         self.update() # to get a first frame
+
+    def createWindows(self):
+        self.rootWindow = tk.Tk()
+        self.rootWindow.resizable(False, False)
+        # self.rootWindow.tk.call("source", os.path.abspath("../../parts\controllers/azure_ttk_theme/azure.tcl")) # https://github.com/rdbende/Azure-ttk-theme
+        # self.rootWindow.tk.call("set_theme", "light")
+
+        self.rootWindow.title("Camera Feed Manager")
+        ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
+        ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+
+        self.createMaskWindow()
+        self.createHSVWindow()
+
+        self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
+        self.rootWindow.update_idletasks()
 
     def createMaskWindow(self):
         if self.maskWindow is None or not self.maskWindow.running:
@@ -171,7 +174,7 @@ class DepthCamera:
         self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
         try:
             self.pipeline_profile = self.config.resolve(self.pipeline_wrapper)
-        except RuntimeError as err:
+        except Exception as err:
             self.initialized = False
             raise Exception('DepthCamera', str(err))
 
@@ -263,7 +266,9 @@ class DepthCamera:
             self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
         if self.show_video_feed:
-            # res = cv.bitwise_and(frame, frame, mask=mask)
+            if self.rootWindow is None:
+                self.createWindows()
+
             if self.maskWindow.running:
                 self.maskWindow.set_frame(self.maskFrame)
             # image = ImageTk.PhotoImage(image=Image.fromarray(cv.cvtColor(hsv, cv.COLOR_BGR2RGB)))

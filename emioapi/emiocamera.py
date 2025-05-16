@@ -1,9 +1,4 @@
-from multiprocessing.managers import ListProxy
-from multiprocessing.sharedctypes import Synchronized
-from multiprocessing.managers import SyncManager
-from multiprocessing.synchronize import Lock
-from multiprocessing import Process
-import multiprocessing
+import threading
 import logging
 import time
 
@@ -17,52 +12,41 @@ logger = logging.getLogger(__name__)
 class EmioCamera:
     """
     A class to interface with the realsense camera on Emio.
-    This class creates a process using mulltiprocessing to handle the camera.
+    This class opens the camera on Emio in the same process.
+
+    It is recommendend to use this class if you want to use the camera in a SOFA scene.
+
+    :::warning
+    If you want to open the camera in another process, you can use the [MultiprocessEmioCamera](#MultiprocessEmioCamera) class.
+    :::
+
     
     """
-    _compute_point_cloud: Synchronized = None
-    _show: Synchronized = None
-    _camera_process: Process = None
-    _manager: SyncManager = None
-    _lock_camera: Lock  = None
-    _trackers_pos: ListProxy = None
-    _point_cloud: ListProxy = None
-    _tracking: Synchronized = None
-    _running: Synchronized = None
-    _parameter: dict = {'hue_h': 176,
-                'hue_l': 120,
-                'sat_h': 255,
-                'sat_l': 116,
-                'value_h': 255,
-                'value_l': 50,
-                'erosion_size': 1,
-                'area': 1,
-                }
-    _hsv_frame: ListProxy = None
-    _mask_frame: ListProxy = None
+    _lock = threading.Lock= threading.Lock()
+    _compute_point_cloud: bool = False
+    _camera: DepthCamera = None
+    _tracking: bool = True
+    _running: bool = False
+    _parameter: dict = None
+    _trackers_pos: list = []
+    _point_cloud: np.ndarray = None
+    _hsv_frame: np.ndarray = None
+    _mask_frame: np.ndarray = None
 
 
-    def __init__(self, camera_name=None, parameter=None, show=False, tracking=True, compute_point_cloud=False):
+    def __init__(self, camera_name=None, parameter=None, show=False, track_markers=True, compute_point_cloud=False):
         """
         Initialize the camera.
         Args:
             camera_name: str: The name of the camera to connect to. If None, the first camera found will be used.
             parameter: dict:  The camera parameters. If None, the lastest save paramters are used from a file, but if no file is found, default values will be used.
             show: bool:  Whether to show the camera HSV and Mask frames or not.
-            tracking: bool:  Whether to track objects or not.
+            track_markers: bool:  Whether to track objects or not.
             compute_point_cloud: bool: Whether to compute the point cloud or not.
         """
-        multiprocessing.freeze_support()
-        self._manager = multiprocessing.Manager()
-        self._lock_camera = multiprocessing.Lock()
-        self._trackers_pos = self._manager.list()
-        self._point_cloud = self._manager.list()
-        self._hsv_frame = self._manager.list()
-        self._mask_frame = self._manager.list()
-        self._running = multiprocessing.Value('b', False)
-        self._tracking = multiprocessing.Value('b', tracking)
-        self._show = multiprocessing.Value('b', show)
-        self._compute_point_cloud = multiprocessing.Value('b', compute_point_cloud)
+        self._tracking = track_markers
+        self._show = show
+        self._compute_point_cloud = compute_point_cloud
         if parameter is not None:
             self._parameter = parameter
 
@@ -81,7 +65,7 @@ class EmioCamera:
         Returns:
             bool: The running status of the camera.
         """
-        return self._running.value
+        return self._running
     
 
     @property
@@ -91,7 +75,7 @@ class EmioCamera:
         Returns:
             bool: True if the camera is tracking the markers, else False.
         """
-        return self._tracking.value
+        return self._tracking
     
 
     @track_markers.setter
@@ -101,7 +85,7 @@ class EmioCamera:
         Args:
             value: bool: The new tracking status.
         """
-        self._tracking.value = value
+        self._tracking = value
 
     @property
     def compute_point_cloud(self):
@@ -110,7 +94,7 @@ class EmioCamera:
         Returns:
             bool: True if the camera is computing the point cloud, else False.
         """
-        return self._compute_point_cloud.value
+        return self._compute_point_cloud
     
 
     @compute_point_cloud.setter
@@ -120,7 +104,7 @@ class EmioCamera:
         Args:
             value: bool: The new point cloud computation status.
         """
-        self._compute_point_cloud.value = value
+        self._compute_point_cloud = value
 
     
     @property
@@ -130,7 +114,9 @@ class EmioCamera:
         Returns:
             bool: The show status of the camera.
         """
-        return self._show.value
+        if self._camera is not None:
+            self._show = self._camera.show_video_feed
+        return self._show
     
 
     @show_frames.setter
@@ -140,8 +126,9 @@ class EmioCamera:
         Args:
             value: bool: The new show status.
         """
-        self._show.value = value
-        logger.info(f"Show frames set to {self._show.value}")
+        self._show = value
+        if self._camera is not None:
+            self._camera.show_video_feed = value
 
     
     @property
@@ -151,7 +138,7 @@ class EmioCamera:
         Returns:
             dict: The camera parameters.
         """
-        return self._parameter
+        return self._camera.parameter
     
 
     @parameters.setter
@@ -185,7 +172,7 @@ class EmioCamera:
         Returns:
             list: The positions of the trackers as a list of lists.
         """
-        with self._lock_camera:
+        with self._lock:
             if self._tracking:
                 return self._trackers_pos
             else:
@@ -198,9 +185,9 @@ class EmioCamera:
         Returns:
             The point cloud data as a numpy array.
         """
-        with self._lock_camera:
+        with self._lock:
             if self._compute_point_cloud:
-                return self._point_cloud[0]
+                return self._point_cloud
             else:
                 return np.array([])
 
@@ -212,9 +199,9 @@ class EmioCamera:
         Returns:
             The HSV frame as a numpy array.
         """
-        with self._lock_camera:
-            if self._hsv_frame:
-                return self._hsv_frame[0]
+        with self._lock:
+            if self._hsv_frame is not None:
+                return self._hsv_frame
             else:
                 return None
     
@@ -226,9 +213,9 @@ class EmioCamera:
         Returns:
             The mask frame as a numpy array.
         """
-        with self._lock_camera:
-            if self._mask_frame:
-                return self._mask_frame[0]
+        with self._lock:
+            if self._mask_frame is not None:
+                return self._mask_frame
             else:
                 return None
             
@@ -240,92 +227,45 @@ class EmioCamera:
 
 
 
-    def __getstate__(self):
-        """
-        Get the state of the object for pickling.
-        This method is used to remove the _manager attribute from the object state based on https://laszukdawid.com/blog/2017/12/13/multiprocessing-in-python-all-about-pickling/
-        """
-        self_dict = self.__dict__.copy()
-        del self_dict['_manager']
-        return self_dict
-
     def open(self) -> bool:
         """
         Initialize and open the camera in another process.
         This function creates a new process to handle the camera and starts it.
         """
-        if self._running.value:
-             self._camera_process.terminate()
 
-        self._camera_process = Process(target=self._processCamera, args=(self._running, 
-                                                                                         self._tracking, 
-                                                                                         self._show, 
-                                                                                         self._compute_point_cloud, 
-                                                                                         self._trackers_pos, 
-                                                                                         self._point_cloud, 
-                                                                                         self._parameter,
-                                                                                         self._hsv_frame,
-                                                                                         self._mask_frame))
-        self._camera_process.start()
-
-        timeout = time.time() + 5
-
-        while not self._running.value:
-            time.sleep(0.5)
-            if time.time() > timeout:
-                logger.error("Camera process did not start within the timeout period. Exiting.")
+        try:
+            if self._running:
                 self.close()
-                return False
-            continue
+                self._running = False
 
-        return True
+            logger.debug("Starting camera with show: {}, tracking: {}, compute_point_cloud: {}".format(self._show, self._tracking, self._compute_point_cloud))
+            self._camera = DepthCamera(parameter=self._parameter, 
+                                compute_point_cloud=self._compute_point_cloud, 
+                                show_video_feed=self._show, 
+                                tracking=self._tracking)
+            self._running = True
+            logger.info("Camera successfully started.")
+            return True
+        except Exception as e:
+            if self._camera:
+                self._camera.close()
+            self._running = False
+            logger.error("Error opening camera"+str(e))
+            return False
 
-
-    def _processCamera(self, running: Synchronized, tracking: Synchronized, show: Synchronized, 
-                       compute_point_cloud: Synchronized, trackers_pos: ListProxy, 
-                       point_cloud: ListProxy, parameter: dict=None, hsv_frame: ListProxy=None, mask_frame: ListProxy=None):
-        """
-        Process to handle the camera.
-        This function runs in a separate process and updates the camera frames.
-        Args:
-            running: bool: A boolean indicating whether the camera is running or not.
-            tracking: bool: A boolean indicating whether to track objects or not.
-            show: bool: A boolean indicating whether to show the camera frames or not.
-            trackersPos: list: A list to store the positions of the trackers.
-            point_cloud: list: A list to store the point cloud data.
-            parameter: dict: The camera parameters.
-            hsv_frame: list: A list to store the HSV frame.
-            mask_frame: list: A list to store the mask frame.
-        """
-
-        logger.debug("Starting camera process with show: {}, tracking: {}, compute_point_cloud: {}".format(show.value, tracking.value, compute_point_cloud.value))
-        camera = DepthCamera(parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
-        running.value = True
-        while running.value:
-            camera.update()
-
-            with self._lock_camera:
-                del hsv_frame[:]
-                hsv_frame.append(camera.hsvFrame)
-                del mask_frame[:]
-                mask_frame.append(camera.maskFrame)
-                self._mask_frame = camera.maskFrame
-                if tracking:
-                    del trackers_pos[:]
-                    trackers_pos.extend(camera.trackers_pos)
-                if compute_point_cloud:
-                        del point_cloud[:]
-                        point_cloud.append(camera.point_cloud)
-                
-
-        camera.close()
-        running.value = False
-
+    def update(self):
+        self._camera.update()
+        with self._lock:
+            self._hsv_frame = self._camera.hsvFrame
+            self._mask_frame = self._camera.maskFrame
+            if self._tracking:
+                self._trackers_pos = self._camera.trackers_pos
+            if self._compute_point_cloud:
+                    self._point_cloud = self._camera.point_cloud
         
     def close(self):
         """
         Close the camera and terminate the process. Sets the running status to False.
         """
-        self._running.value = False
-        if self._camera_process.is_alive():
-            self._camera_process.terminate()
+        self._running = False
+        self._camera.close()
