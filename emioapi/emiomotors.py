@@ -6,6 +6,8 @@ from threading import Lock
 import emioapi._motorgroup as MotorGroup
 import emioapi._emiomotorsparameters as EmioParameters
 
+FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EmioMotors:

@@ -3,6 +3,8 @@ from dynamixel_sdk import *
 import emioapi._emiomotorsparameters as MotorsParametersTemplate
 import logging
 
+FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def listEmioDevices():

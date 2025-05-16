@@ -6,6 +6,8 @@ import numpy as np
 
 from ._depthcamera import DepthCamera
 
+FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 """
 A simple example using both the camera and the motors.
 Here new commands are sent every seconds to the motors.
-Because we use a 1s sleep in the while loop, the camera won't be fluid because by default, it is launched in the same process as the while loop.
+Because we use a 1s sleep in the while loop, the camera won't be fluid because by default, it is launched in the same process as the while loo
 """
 
 def main():

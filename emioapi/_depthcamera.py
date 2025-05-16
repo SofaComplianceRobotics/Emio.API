@@ -11,6 +11,8 @@ import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
 
+FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
