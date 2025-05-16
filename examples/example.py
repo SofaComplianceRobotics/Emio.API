@@ -15,11 +15,17 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+"""
+A simple example using both the camera and the motors.
+Here new commands are sent every seconds to the motors.
+Because we use a 1s sleep in the while loop, the camera won't be fluid because by default, it is launched in the same process as the while loop.
+"""
+
 def main():
     emio = EmioAPI()
 
     # Camera     
-    emio.camera.show_frames = False # Show camera frames. Default is False.
+    emio.camera.show_frames = True # Show camera frames. Default is False.
     emio.camera.track_markers = True # Track objects. Default is True.
     emio.camera.compute_point_cloud = True # Compute point cloud. Default is False.
 
@@ -47,7 +53,7 @@ def main():
                 time.sleep(1)
                 print("--" * 20)
 
-                # camera
+                # camera 
                 emio.camera.update()
                 logger.info(f"Camera parameters: {emio.camera.parameters}")
                 logger.info(f"Camera show: {emio.camera.show_frames}")
