@@ -36,7 +36,7 @@ class EmioMotors:
         Convert length (mm) to pulse using the conversion factor `lengthToPulse`. 
         
         Args:
-            displacement: list of length values in mm for each motor.
+            displacement: list: list of length values in mm for each motor.
 
         Returns:
             A list of pulse values for each motor.
@@ -62,7 +62,7 @@ class EmioMotors:
         Convert pulse to radians using the conversion factor `radToPulse`.
 
         Args:
-            pulse: list of pulse integer values for each motor.
+            pulse: list: list of pulse integer values for each motor.
 
         Returns:
             A list of angles in radians for each motor.
@@ -76,7 +76,7 @@ class EmioMotors:
         Convert pulse to degrees using the conversion factor `radToPulse`.
 
         Args:
-            pulse: list of pulse values for each motor.
+            pulse: list: list of pulse values for each motor.
 
         Returns:
             A list of angles in degrees for each motor.
@@ -106,11 +106,19 @@ class EmioMotors:
                 logger.error(f"Failed to open and configure the motor group: {e}")
                 return False
 
+
     def open(self, device_name: str=None) -> bool:
+        """
+        Open the connection to the motors.
+        
+        Args:
+            device_name: str: if set, it will connect to the device with the given name, If not set, the first emio device will be used.
+        """
         if self._openAndConfig(device_name):
             logger.info(f"Connected to emio device: {self._mg.deviceName}")
             return True
         return False
+
 
     def close(self):
         """Close the connection to the motors."""
@@ -150,13 +158,13 @@ class EmioMotors:
 
 
     @property
-    def angles(self):
+    def angles(self) -> list:
         """Get the current angles of the motors in radians."""
         with self._lock:
             return self.pulseToRad(self._mg.getCurrentPosition())
 
     @angles.setter
-    def angles(self, angles):
+    def angles(self, angles: list):
         """Set the goal angles of the motors in radians."""
         with self._lock:
             self._goal_position = angles
@@ -164,24 +172,24 @@ class EmioMotors:
 
 
     @property
-    def goal_velocity(self):
+    def goal_velocity(self) -> list:
         """Get the current velocity (rev/min) of the motors."""
         return self._goal_velocity
 
     @goal_velocity.setter
-    def goal_velocity(self, velocities):
+    def goal_velocity(self, velocities: list):
         """Set the goal velocity (rev/min) of the motors."""
         self._goal_velocity = velocities
         with self._lock:
             self._mg.setGoalVelocity(velocities)
 
     @property
-    def max_velocity(self):
+    def max_velocity(self)-> list:
         """Get the current velocity (rev/min) profile of the motors."""
         return self._max_vel
     
     @max_velocity.setter
-    def max_velocity(self, max_vel):
+    def max_velocity(self, max_vel: list):
         """Set the maximum velocities (rev/min) in position mode.
         Arguments:
             max_vel: list of maximum velocities for each motor in rev/min.
@@ -192,46 +200,47 @@ class EmioMotors:
 
     #### Read-only properties ####
     @property
-    def is_connected(self):
+    def is_connected(self) -> bool:
         """Check if the motors are connected."""
         with self._lock:
             return self._mg.isConnected
         
     @property
-    def device_name(self):
+    def device_name(self) -> str:
         """Get the name of the device."""
         with self._lock:
             return self._mg.deviceName
 
     @property
-    def moving(self):
+    def moving(self) -> list:
         """Check if the motors are moving."""
         with self._lock:
             return self._mg.isMoving()
     
     @property
-    def moving_status(self):
+    def moving_status(self) -> list:
         """Get the moving status of the motors.
         Returns:
-         A Byte encoding different informations on the moving status like whether the desired position has been reached or not, if the profile is in progress or not, the kind of Profile used...
-        See here https://emanual.robotis.com/docs/en/dxl/x/xc330-t288/#moving-status for more details."""
+         A Byte encoding different informations on the moving status like whether the desired position has been reached or not, if the profile is in progress or not, the kind of Profile used.
+
+        See [here](https://emanual.robotis.com/docs/en/dxl/x/xc330-t288/#moving-status) for more details."""
         with self._lock:
             return self._mg.getMovingStatus()
     
     @property
-    def velocity(self):
+    def velocity(self) -> list:
         """Get the current velocity (rev/min) of the motors."""
         with self._lock:
             return self._mg.getCurrentVelocity()
     
     @property
-    def velocity_trajectory(self):
+    def velocity_trajectory(self)-> list:
         """Get the velocity (rev/min) trajectory of the motors."""
         with self._lock:
             return self._mg.getVelocityTrajectory()
     
     @property
-    def position_trajectory(self):
+    def position_trajectory(self)-> list:
         """Get the position (pulse) trajectory of the motors."""
         with self._lock:
             return self._mg.getPositionTrajectory()

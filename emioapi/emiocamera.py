@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class EmioCamera:
     """
-    A class to interface with the realsense camera on Emio.
-    This class opens the camera on Emio in the same process.
+    A class to interface with the Realsense camera on Emio.
+    This class opens the camera in the same process as the code is running from.
 
     It is recommendend to use this class if you want to use the camera in a SOFA scene.
 
@@ -59,7 +59,7 @@ class EmioCamera:
 
 
     @property
-    def is_running(self):
+    def is_running(self) -> bool:
         """
         Get the running status of the camera.
         Returns:
@@ -69,7 +69,7 @@ class EmioCamera:
     
 
     @property
-    def track_markers(self):
+    def track_markers(self) -> bool:
         """
         Get whether the camera is tracking objects or not.
         Returns:
@@ -79,7 +79,7 @@ class EmioCamera:
     
 
     @track_markers.setter
-    def track_markers(self, value):
+    def track_markers(self, value: bool):
         """
         Set the tracking status of the camera.
         Args:
@@ -88,7 +88,7 @@ class EmioCamera:
         self._tracking = value
 
     @property
-    def compute_point_cloud(self):
+    def compute_point_cloud(self) -> bool:
         """
         Get whether the camera is computing the point cloud or not.
         Returns:
@@ -98,7 +98,7 @@ class EmioCamera:
     
 
     @compute_point_cloud.setter
-    def compute_point_cloud(self, value):
+    def compute_point_cloud(self, value: bool):
         """
         Set the point cloud computation status of the camera.
         Args:
@@ -108,9 +108,9 @@ class EmioCamera:
 
     
     @property
-    def show_frames(self):
+    def show_frames(self) -> bool:
         """
-        Get the show status of the camera.
+        Get whether the camera HSV and mask frames are shown in windows.
         Returns:
             bool: The show status of the camera.
         """
@@ -120,7 +120,7 @@ class EmioCamera:
     
 
     @show_frames.setter
-    def show_frames(self, value):
+    def show_frames(self, value: bool):
         """
         Set the show status of the camera.
         Args:
@@ -132,9 +132,17 @@ class EmioCamera:
 
     
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
         """
-        Get the camera parameters.
+        Get the camera parameters in a dict object:
+            - `hue_h`: int: The upper hue value.
+            - `hue_l`: int: The lower hue value.
+            - `sat_h`: int: The upper saturation value.
+            - `sat_l`: int: The lower saturation value.
+            - `value_h`: int: The upper value value.
+            - `value_l`: int: The lower value value.
+            - `erosion_size`: int: The size of the erosion kernel.
+            - `area`: int: The minimum area of the detected objects.
         Returns:
             dict: The camera parameters.
         """
@@ -142,17 +150,17 @@ class EmioCamera:
     
 
     @parameters.setter
-    def parameters(self, value):
+    def parameters(self, value: dict):
         """
-        Set the camera tracking parameters:
-            - hue_h: int: The upper hue value.
-            - hue_l: int: The lower hue value.
-            - sat_h: int: The upper saturation value.
-            - sat_l: int: The lower saturation value.
-            - value_h: int: The upper value value.
-            - value_l: int: The lower value value.
-            - erosion_size: int: The size of the erosion kernel.
-            - area: int: The minimum area of the detected objects.
+        Set the camera tracking parameters from the dict object:
+            - `hue_h`: int: The upper hue value.
+            - `hue_l`: int: The lower hue value.
+            - `sat_h`: int: The upper saturation value.
+            - `sat_l`: int: The lower saturation value.
+            - `value_h`: int: The upper value value.
+            - `value_l`: int: The lower value value.
+            - `erosion_size`: int: The size of the erosion kernel.
+            - `area`: int: The minimum area of the detected objects.
 
         :::warning
         - The camera parameters are not saved to a file. You need to save them manually.
@@ -166,7 +174,7 @@ class EmioCamera:
     
 
     @property
-    def trackers_pos(self):
+    def trackers_pos(self) -> list:
         """
         Get the positions of the trackers.
         Returns:
@@ -179,7 +187,7 @@ class EmioCamera:
                 return []
     
     @property
-    def point_cloud(self):
+    def point_cloud(self) -> np.ndarray:
         """
         Get the point cloud data.
         Returns:
@@ -193,7 +201,7 @@ class EmioCamera:
 
     
     @property
-    def hsv_frame(self):
+    def hsv_frame(self) -> np.ndarray:
         """
         Get the HSV frame.
         Returns:
@@ -207,7 +215,7 @@ class EmioCamera:
     
 
     @property
-    def mask_frame(self):
+    def mask_frame(self) -> np.ndarray:
         """
         Get the mask frame.
         Returns:
@@ -254,6 +262,9 @@ class EmioCamera:
             return False
 
     def update(self):
+        """
+            Update the camera frames and tracking elements (markers and point cloud)
+        """
         self._camera.update()
         with self._lock:
             self._hsv_frame = self._camera.hsvFrame

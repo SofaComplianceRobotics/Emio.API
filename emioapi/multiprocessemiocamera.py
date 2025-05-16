@@ -74,7 +74,7 @@ class MultiprocessEmioCamera:
 
 
     @property
-    def is_running(self):
+    def is_running(self) -> bool:
         """
         Get the running status of the camera.
         Returns:
@@ -84,7 +84,7 @@ class MultiprocessEmioCamera:
     
 
     @property
-    def track_markers(self):
+    def track_markers(self) -> bool:
         """
         Get whether the camera is tracking objects or not.
         Returns:
@@ -94,7 +94,7 @@ class MultiprocessEmioCamera:
     
 
     @track_markers.setter
-    def track_markers(self, value):
+    def track_markers(self, value: bool):
         """
         Set the tracking status of the camera.
         Args:
@@ -103,7 +103,7 @@ class MultiprocessEmioCamera:
         self._tracking.value = value
 
     @property
-    def compute_point_cloud(self):
+    def compute_point_cloud(self) -> bool:
         """
         Get whether the camera is computing the point cloud or not.
         Returns:
@@ -113,7 +113,7 @@ class MultiprocessEmioCamera:
     
 
     @compute_point_cloud.setter
-    def compute_point_cloud(self, value):
+    def compute_point_cloud(self, value: bool):
         """
         Set the point cloud computation status of the camera.
         Args:
@@ -123,7 +123,7 @@ class MultiprocessEmioCamera:
 
     
     @property
-    def show_frames(self):
+    def show_frames(self) -> bool:
         """
         Get the show status of the camera.
         Returns:
@@ -133,7 +133,7 @@ class MultiprocessEmioCamera:
     
 
     @show_frames.setter
-    def show_frames(self, value):
+    def show_frames(self, value: bool):
         """
         Set the show status of the camera.
         Args:
@@ -143,9 +143,18 @@ class MultiprocessEmioCamera:
 
     
     @property
-    def parameters(self):
+    def parameters(self) -> dict:
         """
-        Get the camera parameters.
+        Get the camera parameters in a dict:
+            - `hue_h`: int: The upper hue value.
+            - `hue_l`: int: The lower hue value.
+            - `sat_h`: int: The upper saturation value.
+            - `sat_l`: int: The lower saturation value.
+            - `value_h`: int: The upper value value.
+            - `value_l`: int: The lower value value.
+            - `erosion_size`: int: The size of the erosion kernel.
+            - `area`: int: The minimum area of the detected objects.
+
         Returns:
             dict: The camera parameters.
         """
@@ -153,17 +162,17 @@ class MultiprocessEmioCamera:
     
 
     @parameters.setter
-    def parameters(self, value):
+    def parameters(self, value: dict):
         """
-        Set the camera tracking parameters:
-            - hue_h: int: The upper hue value.
-            - hue_l: int: The lower hue value.
-            - sat_h: int: The upper saturation value.
-            - sat_l: int: The lower saturation value.
-            - value_h: int: The upper value value.
-            - value_l: int: The lower value value.
-            - erosion_size: int: The size of the erosion kernel.
-            - area: int: The minimum area of the detected objects.
+        Set the camera tracking parameters from the dict:
+            - `hue_h`: int: The upper hue value.
+            - `hue_l`: int: The lower hue value.
+            - `sat_h`: int: The upper saturation value.
+            - `sat_l`: int: The lower saturation value.
+            - `value_h`: int: The upper value value.
+            - `value_l`: int: The lower value value.
+            - `erosion_size`: int: The size of the erosion kernel.
+            - `area`: int: The minimum area of the detected objects.
 
         :::warning
         - The camera parameters are not saved to a file. You need to save them manually.
@@ -180,7 +189,7 @@ class MultiprocessEmioCamera:
     
 
     @property
-    def trackers_pos(self):
+    def trackers_pos(self) -> list:
         """
         Get the positions of the trackers.
         Returns:
@@ -193,7 +202,7 @@ class MultiprocessEmioCamera:
                 return []
     
     @property
-    def point_cloud(self):
+    def point_cloud(self) -> np.ndarray:
         """
         Get the point cloud data.
         Returns:
@@ -207,7 +216,7 @@ class MultiprocessEmioCamera:
 
     
     @property
-    def hsv_frame(self):
+    def hsv_frame(self) -> np.ndarray | None:
         """
         Get the HSV frame.
         Returns:
@@ -221,7 +230,7 @@ class MultiprocessEmioCamera:
     
 
     @property
-    def mask_frame(self):
+    def mask_frame(self) -> np.ndarray | None:
         """
         Get the mask frame.
         Returns:

@@ -14,7 +14,7 @@ from threading import Lock
 from emioapi.emiomotors import EmioMotors, MotorGroup
 from emioapi.multiprocessemiocamera import MultiprocessEmioCamera
 from emioapi.emiocamera import EmioCamera
-
+from emioapi.emioapi import EmioAPI
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -24,8 +24,9 @@ class EmioAPI:
     """
     Class to control emio motors. 
     It is essentially divided into two objects:
-    - The `motors` object (`EmioMotors` class), which is used to control the motors.
-    - The `camera` object (`EmioCamera` class), which is used to control the camera.
+    - The [`motors`](#motors) object ([`EmioMotors`](#emiomotors)), which is used to control the motors.
+    - The [`camera`](#camera) object ([`EmioCamera`](#emiocamera)), which is used to control the camera.
+
 
     The EmioAPI class is the main class that combines both classes and provides a simple interface to control the emio device.
     It also provides static utility methods to list the emio devices connected to the computer.
@@ -34,7 +35,7 @@ class EmioAPI:
         > The motors are controlled in position mode. The class is thread-safe and can be used in a multi-threaded environment.
         > All the data sent to the motors are list of *4 values* for the *4 motors* of the emio device. The order in the list corresponds to the motor ID's in the emio device.
         > Motor 0 is the first motor in the list, motor 1 is the second motor, etc.
-        > You can open a connection directly to the motors using the `open` method of the `motors` object.
+        > You can open a connection directly to the motors using the [`open`](#opendevice_name-str--none) method of the `motors` object.
         > 
         > :::warning 
         > 
@@ -43,16 +44,46 @@ class EmioAPI:
         > :::
 
     Camera:
-        > The camera is controlled in a separate process. The camera is used to track objects and compute the point cloud.
+        > The camera is used to track objects and compute the point cloud.
         > The camera parameters are stored in a config file. If the config file is not found, default values are used.
         > The camera can be configured to show the frames, track objects, and compute the point cloud.
-        > You can open a connection directly to the camera using the `open` method of the `camera` object.
-    
+        > You can open a connection directly to the camera using the [`open`](#open) method of the `camera` object.
+        >
+        > :::warning
+        > By default, EmioAPI launches the camera in the same process by creating an [EmioCamera](#emiocamera) object.
+        > You can launch the camera in another process using a [MultiProcessEmioCamera](#multiprocessemiocamera) by setting the `multiprocess_camera=True` when creating an `EmioAPI` object.
+        > :::
+
+
+    Example:
+        ```python
+        from emioapi import EmioAPI
+
+        # Create an EmioAPI instance
+        emio = EmioAPI(multiprocess_camera=False)
+
+        # Connect to the first available Emio device
+        if emio.connectToEmioDevice():
+            print("Connected to Emio device.")
+
+            # Print device status
+            emio.printStatus()
+
+            # Example: Move all motors to 90 degrees (PI/2 radians)
+            target_angles = [math.pi/2] * 4
+            emio.motors.setAngles(target_angles)
+
+            # Disconnect when done
+            emio.disconnect()
+        else:
+            print("Failed to connect to Emio device.")
+        ```
+        
     """
+
     _emio_list = {}  # Dict of all emio devices connected to the computer
-    motors: EmioMotors = None  # The emio motors object
-    camera: MultiprocessEmioCamera | EmioCamera = None  # The emio camera object
-    camera_parameters: dict = None  # The camera parameters object
+    motors: EmioMotors = None  # The emio motors object: [`EmioMotors`](#emiomotors)
+    camera: MultiprocessEmioCamera | EmioCamera = None  # The emio camera object: [`EmioCamera`](#emiocamera) | [`MultiprocessEmioCamera`](#multiprocessemiocamera)
 
     def __init__(self, multiprocess_camera=False):
         self._lock = Lock()
@@ -98,7 +129,7 @@ class EmioAPI:
         Connect to the emio device with the given name.
         
         Args:
-            device_name: The name of the device to connect to. If None, the first device found that is not used in this process will be the chosen one.
+            device_name: str: The name of the device to connect to. If None, the first device found that is not used in this process will be the chosen one.
 
         Returns:
             True if the connection is successful, False otherwise.

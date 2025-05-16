@@ -48,12 +48,22 @@ type = "markdown"
 filename = "emioapi.md"
 descriptive_class_title = false
 descriptive_module_title = false
-insert_header_anchors = true
+render_page_title = false
+render_module_header = false
+add_module_prefix = false
+add_full_prefix = false
+insert_header_anchors = false
 classdef_code_block = true
 signature_code_block = true
 signature_in_header = true
 code_headers = false
-use_fixed_header_levels = false
+use_fixed_header_levels = true
 render_toc = false
 toc_maxdepth = 4
 
+[tool.pydoc-markdown.renderer.header_level_by_type]
+Module = 2
+Class = 2
+Method = 3
+Function = 3
+Data = 3
