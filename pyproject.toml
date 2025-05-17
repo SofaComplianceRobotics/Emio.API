@@ -10,7 +10,8 @@ readme = "README.md"
 dependencies = [
     "pyserial",
  "dynamixel_sdk",
- "pyrealsense2",
+ "pyrealsense2; platform_system != 'Darwin'",
+ "pyrealsense2-macosx; platform_system == 'Darwin'",
  "opencv-python",
  "numpy==1.26.4",
  "pillow",
