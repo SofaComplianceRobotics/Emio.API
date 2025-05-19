@@ -6,10 +6,13 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: Build, Realease and Publish Python Package with doc
 
 on: 
   workflow_dispatch:
+  push:
+    branches: 
+      - main
   schedule:
     - cron: '0 3 * * *' # nightly job at 3am UTC
 
