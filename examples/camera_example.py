@@ -37,14 +37,17 @@ def main(emio: EmioCamera):
 
 if __name__ == "__main__":
     try:
-        logger.info("Starting EMIO API test...")
-        logger.info("Opening and configuring EMIO API...")
+        logger.info("Starting EMIO Camera test...")
         
+        logger.info("List of available cameras\n"+str(EmioCamera.listCameras()))
+
+        logger.info("Opening and configuring EMIO Camera...")
+
         emio = EmioCamera(show=True, track_markers=True, compute_point_cloud=True)
         
-        if emio.open():
+        if emio.open(): # This will open the first available Realsense camera
             
-            logger.info("Emio camera opened .")
+            logger.info(f"Emio camera {emio.camera_serial} opened.")
             logger.info("Running main function...")
             main(emio)
 

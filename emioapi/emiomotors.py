@@ -2,8 +2,8 @@ import logging
 from dataclasses import field
 from threading import Lock
 
-import emioapi._motorgroup as MotorGroup
-import emioapi._emiomotorsparameters as EmioParameters
+import emioapi._motorgroup as motorgroup
+import emioapi._emiomotorsparameters as emioparameters
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -47,15 +47,24 @@ class EmioMotors:
     _length_to_pulse: int = _length_to_rad * _rad_to_pulse
     _pulse_center: int = 2048
     _max_vel: float = 1000  # *0.01 rev/min
-    _goal_velocity: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
-    _goal_position: list = field(default_factory=lambda: [0] * len(EmioParameters.DXL_IDs))
-    _mg: MotorGroup.MotorGroup = None
+    _goal_velocity: list = field(default_factory=lambda: [0] * len(emioparameters.DXL_IDs))
+    _goal_position: list = field(default_factory=lambda: [0] * len(emioparameters.DXL_IDs))
+    _mg: motorgroup.MotorGroup = None
+
+
+
+    #####################
+    ###### METHODS ######
+    #####################
+
+
 
     def __init__(self):
         self._lock = Lock()
         if not self._initialized:
-            self._mg = MotorGroup.MotorGroup(EmioParameters)
+            self._mg = motorgroup.MotorGroup(emioparameters)
             self._initialized = True
+
 
     def lengthToPulse(self, displacement: list):
         """
@@ -112,7 +121,7 @@ class EmioMotors:
 
     def _openAndConfig(self, device_name: str=None) -> bool:
         """Open the connection to the motors, configure it for position mode and enable torque sensing."""
-        logger.info("Opening and configuring the motor group.")
+        logger.debug("Opening and configuring the motor group.")
         with self._lock:
             try:
                 self._mg.updateDeviceName(device_name)
@@ -126,7 +135,7 @@ class EmioMotors:
                 self._mg.setInPositionMode()
                 self._mg.enableTorque()
 
-                logger.info(f"Motor group opened and configured. Device name: {self._mg.deviceName}")
+                logger.debug(f"Motor group opened and configured. Device name: {self._mg.deviceName}")
                 return True
             except Exception as e:
                 logger.error(f"Failed to open and configure the motor group: {e}")
@@ -160,9 +169,12 @@ class EmioMotors:
             logger.info(f"Current position of the motors in pulses: {self._mg.getCurrentPosition()}")
 
     
+
     ####################
     #### PROPERTIES ####
     ####################
+
+
 
     #### Read and Write properties ####
     @property

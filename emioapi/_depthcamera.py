@@ -59,6 +59,11 @@ def compute_cdg(contour):
     return cX, cY
 
 
+def listCameras() -> list:
+    context = rs.context()
+    return [d.get_info(rs.camera_info.serial_number) for d in context.devices]
+
+
 class DepthCamera:
 
     height = 480
@@ -83,8 +88,16 @@ class DepthCamera:
     hsvFrame = None
     maskFrame = None
 
+    @property
+    def camera_serial(self) -> str:
+        """
+        Returns the serial of the camera as str
+        
+        """
+        return self.device.get_info(rs.camera_info.serial_number)
 
-    def __init__(self, parameter=None, compute_point_cloud=False, show_video_feed=False, tracking=True) -> None:
+
+    def __init__(self, camera_serial: str=None, parameter: dict=None, compute_point_cloud: bool=False, show_video_feed: bool=False, tracking: bool=True) -> None:
         """
         Initialize the camera and the parameters.
 
@@ -104,7 +117,7 @@ class DepthCamera:
 
 
         self.initialized = True
-        self.init_realsense()
+        self.init_realsense(camera_serial)
 
         if not self.initialized:
             return
@@ -134,6 +147,7 @@ class DepthCamera:
             self.createWindows()
 
         self.update() # to get a first frame
+
 
     def createWindows(self):
         self.rootWindow = tk.Tk()
@@ -168,10 +182,13 @@ class DepthCamera:
         self.show_video_feed = False
         self.rootWindow = None
 
-    def init_realsense(self):
+    def init_realsense(self, camera_serial=None):
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
         self.config = rs.config()
+
+        if  camera_serial is not None:
+            self.config.enable_device(camera_serial)
 
         # Get device product line for setting a supporting resolution
         self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)

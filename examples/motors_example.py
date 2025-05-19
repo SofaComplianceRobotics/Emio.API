@@ -55,7 +55,7 @@ if __name__ == "__main__":
             logger.info("Closing Emio motor connection...")
 
             emio_motors.close()
-            logger.info("EEmio connection closed.")
+            logger.info("Emio connection closed.")
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
         emio_motors.close()

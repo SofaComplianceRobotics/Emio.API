@@ -3,7 +3,7 @@ import logging
 
 import numpy as np
 
-from ._depthcamera import DepthCamera
+import emioapi._depthcamera as depthcamera
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -61,7 +61,7 @@ class EmioCamera:
     """
     _lock = threading.Lock()
     _compute_point_cloud: bool = False
-    _camera: DepthCamera = None
+    _camera: depthcamera.DepthCamera = None
     _tracking: bool = True
     _running: bool = False
     _parameter: dict = None
@@ -70,17 +70,20 @@ class EmioCamera:
     _hsv_frame: np.ndarray = None
     _mask_frame: np.ndarray = None
 
+    camera_serial: str = None
 
-    def __init__(self, camera_name=None, parameter=None, show=False, track_markers=True, compute_point_cloud=False):
+
+    def __init__(self, camera_serial=None, parameter=None, show=False, track_markers=True, compute_point_cloud=False):
         """
         Initialize the camera.
         Args:
-            camera_name: str: The name of the camera to connect to. If None, the first camera found will be used.
+            camera_serial: str: The serial number of the camera to connect to. If None, the first camera found will be used.
             parameter: dict:  The camera parameters. If None, the lastest save paramters are used from a file, but if no file is found, default values will be used.
             show: bool:  Whether to show the camera HSV and Mask frames or not.
             track_markers: bool:  Whether to track objects or not.
             compute_point_cloud: bool: Whether to compute the point cloud or not.
         """
+        self.camera_serial = camera_serial
         self._tracking = track_markers
         self._show = show
         self._compute_point_cloud = compute_point_cloud
@@ -271,11 +274,28 @@ class EmioCamera:
     ##########################
 
 
+    @staticmethod
+    def listCameras() -> list:
+        """
+        Static method to list all the Realsense cameras connected to the computer
 
-    def open(self) -> bool:
+        Returns:
+            list: A list of the serial numbers as string.
+        """
+        return depthcamera.listCameras()
+    
+
+    def open(self, camera_serial: str=None) -> bool:
         """
         Initialize and open the camera in another process.
-        This function creates a new process to handle the camera and starts it.
+        This function creates a new handle to the camera and starts it.
+
+        Args:
+            camera_serial: str: the serial number of the camera to open. If None, the first found Realsense camera will be opened. If the `camera_serial` was set as a parameter or before, the given camera will be opened.
+
+        Returns:
+            bool: True if a camera was opened, else False
+
         """
 
         try:
@@ -283,13 +303,17 @@ class EmioCamera:
                 self.close()
                 self._running = False
 
+            if camera_serial is not None:
+                self.camera_serial = camera_serial
+
             logger.debug("Starting camera with show: {}, tracking: {}, compute_point_cloud: {}".format(self._show, self._tracking, self._compute_point_cloud))
-            self._camera = DepthCamera(parameter=self._parameter, 
+            self._camera = depthcamera.DepthCamera(camera_serial=self.camera_serial, parameter=self._parameter, 
                                 compute_point_cloud=self._compute_point_cloud, 
                                 show_video_feed=self._show, 
                                 tracking=self._tracking)
+            self.camera_serial = self._camera.camera_serial
             self._running = True
-            logger.info("Camera successfully started.")
+            logger.info(f"Camera {self.camera_serial} successfully started.")
             return True
         except Exception as e:
             if self._camera:

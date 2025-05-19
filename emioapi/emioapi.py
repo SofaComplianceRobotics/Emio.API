@@ -10,9 +10,9 @@ from dataclasses import field
 
 from threading import Lock
 
-from emioapi import EmioMotors, MotorGroup
+from emioapi import EmioMotors, motorgroup
 from emioapi import MultiprocessEmioCamera
-from emioapi import EmioCamera
+from emioapi import EmioCamera, emiocamera
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -82,6 +82,37 @@ class EmioAPI:
     _emio_list = {}  # Dict of all emio devices connected to the computer
     motors: EmioMotors = None  # The emio motors object: [`EmioMotors`](#emiomotors)
     camera: MultiprocessEmioCamera | EmioCamera = None  # The emio camera object: [`EmioCamera`](#emiocamera) | [`MultiprocessEmioCamera`](#multiprocessemiocamera)
+    device_index: int= None
+
+
+    @property
+    def device_name(self) -> str | None:
+        """
+        Get the port name to which the EmioAPI object is connected if connected, else None
+        """
+        if self.motors.is_connected:
+            return self.motors.device_name
+        else:
+            return None
+    
+
+    @property
+    def camera_serial(self) -> str | None:
+        """
+        Get the camera serial number to which the EmioAPI object is connected if connected, else None
+        """
+        if self.camera.is_running:
+            return self.camera.camera_serial
+        else:
+            return None
+    
+
+
+    #################
+    #### METHODS ####
+    #################
+
+
 
     def __init__(self, multiprocess_camera=False):
         self._lock = Lock()
@@ -97,7 +128,7 @@ class EmioAPI:
         Returns:
             A list of device names (the ports).
         """
-        return MotorGroup.listEmioDevices()
+        return motorgroup.listMotors()
     
     
     @staticmethod
@@ -121,6 +152,10 @@ class EmioAPI:
         """
         return [device for device in EmioAPI._emio_list.keys()]
     
+    @staticmethod
+    def listCameraDevices():
+        return EmioCamera.listCameras()
+    
     
     def connectToEmioDevice(self, device_name: str=None) -> bool:
         """
@@ -133,14 +168,21 @@ class EmioAPI:
             True if the connection is successful, False otherwise.
         """
         if device_name is None:
-            device_name = EmioAPI.listUnusedEmioDevices()[0] if EmioAPI.listUnusedEmioDevices() else None
+            device_name = EmioAPI.listUnusedEmioDevices()[0] if len(EmioAPI.listUnusedEmioDevices())>0 else None
+
+        # Get the index of the device
+        self.device_index = EmioAPI.listEmioDevices().index(device_name)
+
+        # Get camera serial
+        camera_serial = EmioAPI.listCameraDevices()[self.device_index]
+
+        logger.info(f"Connecting to emio number {self.device_index} on port: {device_name} with camera serial: {camera_serial}")
+
 
         if self.motors.open(device_name):
             EmioAPI._emio_list[self.motors.device_name] = self
-            logger.info(f"Connected to emio motors: {self.motors.device_name}")
 
-            if self.camera.open():
-                logger.info(f"Connected to emio camera")
+            if self.camera.open(camera_serial):
                 return True
         return False
     

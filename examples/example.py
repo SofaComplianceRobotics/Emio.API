@@ -33,12 +33,12 @@ def main():
     emio.camera.parameters = None
 
     try:
-        logger.info(EmioAPI.listEmioDevices())
+        logger.info("List of all Emio devices: "+str(EmioAPI.listEmioDevices()))
         if emio.connectToEmioDevice():  # Open the camera with the current parameters. This will start the camera process.
             logger.info("Successfully connected to Emio.")
             
-            logger.info(EmioAPI.listUsedEmioDevices()) # list all the used Emio devices
-            logger.info(EmioAPI.listUnusedEmioDevices()) # list all the unused Emio devices
+            logger.info("List of used Emio devices: "+str(EmioAPI.listUsedEmioDevices())) # list all the used Emio devices
+            logger.info("List of unused Emio devices: "+str(EmioAPI.listUnusedEmioDevices())) # list all the unused Emio devices
 
             #  Motors
             initial_pos_pulse = [0] * 4

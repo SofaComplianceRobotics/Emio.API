@@ -7,7 +7,7 @@ FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def listEmioDevices():
+def listMotors():
     """
     List all the emio devices connected to the computer.
 
@@ -24,6 +24,7 @@ def listEmioDevices():
         elif p.serial_number is not None and "FTDI" in p.serial_number:
             ports.append(p.device)
     return ports
+
 
 def getDevicePort(entry, method="manufacturer"):
         """
@@ -63,6 +64,18 @@ def getDevicePort(entry, method="manufacturer"):
                     "serial number : " + ports[0].serial_number
                     )
         return ports[0].device
+
+
+def _valToArray( val):
+    """Convert a 32-bit integer to a list of 4 bytes.
+    Args:
+        val (int): The 32-bit integer to convert.
+    Returns:
+        list of bytes: The list of 4 bytes representing the integer.
+    """
+    return [DXL_LOBYTE(DXL_LOWORD(val)), DXL_HIBYTE(DXL_LOWORD(val)), DXL_LOBYTE(DXL_HIWORD(val)),
+            DXL_HIBYTE(DXL_HIWORD(val))]
+
 
 class DisconnectedException(Exception):
     """Custom exception for disconnected motors."""
@@ -376,14 +389,3 @@ class MotorGroup:
         
         if self.portHandler:
             self.portHandler.clearPort()
-
-
-def _valToArray( val):
-    """Convert a 32-bit integer to a list of 4 bytes.
-    Args:
-        val (int): The 32-bit integer to convert.
-    Returns:
-        list of bytes: The list of 4 bytes representing the integer.
-    """
-    return [DXL_LOBYTE(DXL_LOWORD(val)), DXL_HIBYTE(DXL_LOWORD(val)), DXL_LOBYTE(DXL_HIWORD(val)),
-            DXL_HIBYTE(DXL_HIWORD(val))]

@@ -26,8 +26,10 @@ def main():
     emio.parameters = None 
 
     try:
+        logger.info("List of available cameras: "+str(MultiprocessEmioCamera.listCameras()))
+
         if emio.open(): # Open the camera with the current parameters. This will start the camera process.
-            logger.info("Camera opened successfully.")
+            logger.info(f"Camera {emio.camera_serial} opened successfully.")
 
             i = 0
             while i<20:

@@ -1,15 +1,17 @@
 from multiprocessing.managers import ListProxy, DictProxy
 from multiprocessing.sharedctypes import Synchronized
 from multiprocessing.managers import SyncManager
+import multiprocessing.sharedctypes
 from multiprocessing.synchronize import Lock
 from multiprocessing import Process
 import multiprocessing
 import logging
 import time
+from ctypes import c_wchar_p
 
 import numpy as np
 
-from ._depthcamera import DepthCamera
+import emioapi._depthcamera as depthcamera
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -63,9 +65,10 @@ class MultiprocessEmioCamera:
     _parameter: DictProxy = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
     _hsv_frame: ListProxy = None
     _mask_frame: ListProxy = None
+    _camera_serial: Synchronized = None
 
 
-    def __init__(self, camera_name=None, parameter=None, show=False, tracking=True, compute_point_cloud=False):
+    def __init__(self, camera_serial=None, parameter=None, show=False, tracking=True, compute_point_cloud=False):
         """
         Initialize the camera.
         Args:
@@ -82,6 +85,7 @@ class MultiprocessEmioCamera:
         self._point_cloud = self._manager.list()
         self._hsv_frame = self._manager.list()
         self._mask_frame = self._manager.list()
+        self._camera_serial = multiprocessing.Value(c_wchar_p, None)
         self._running = multiprocessing.Value('b', False)
         self._tracking = multiprocessing.Value('b', tracking)
         self._show = multiprocessing.Value('b', show)
@@ -97,6 +101,14 @@ class MultiprocessEmioCamera:
     ##########################
 
 
+
+    @property
+    def camera_serial(self) -> str:
+        """
+        Get the current camera serial number
+        """
+        return self._camera_serial.value
+    
 
     @property
     def is_running(self) -> bool:
@@ -275,6 +287,11 @@ class MultiprocessEmioCamera:
 
 
 
+    @staticmethod
+    def listCameras():
+        return depthcamera.listCameras()
+
+
     def __getstate__(self):
         """
         Get the state of the object for pickling.
@@ -284,7 +301,8 @@ class MultiprocessEmioCamera:
         del self_dict['_manager']
         return self_dict
 
-    def open(self) -> bool:
+
+    def open(self, camera_serial: str=None) -> bool:
         """
         Initialize and open the camera in another process.
         This function creates a new process to handle the camera and starts it.
@@ -292,12 +310,17 @@ class MultiprocessEmioCamera:
         if self._running.value:
              self._camera_process.terminate()
 
+        if camera_serial is not None:
+            self._camera_serial.value = camera_serial
+
+
         self._camera_process = Process(target=self._processCamera, args=(self._running, 
                                                                             self._tracking, 
                                                                             self._show, 
                                                                             self._compute_point_cloud, 
                                                                             self._trackers_pos, 
                                                                             self._point_cloud, 
+                                                                            self._camera_serial,
                                                                             self._parameter,
                                                                             self._hsv_frame,
                                                                             self._mask_frame))
@@ -318,7 +341,7 @@ class MultiprocessEmioCamera:
 
     def _processCamera(self, running: Synchronized, tracking: Synchronized, show: Synchronized, 
                        compute_point_cloud: Synchronized, trackers_pos: ListProxy, 
-                       point_cloud: ListProxy, parameter: DictProxy=None, hsv_frame: ListProxy=None, mask_frame: ListProxy=None):
+                       point_cloud: ListProxy, camera_serial: Synchronized=None, parameter: DictProxy=None, hsv_frame: ListProxy=None, mask_frame: ListProxy=None):
         """
         Process to handle the camera.
         This function runs in a separate process and updates the camera frames.
@@ -333,10 +356,11 @@ class MultiprocessEmioCamera:
             mask_frame: list: A list to store the mask frame.
         """
 
-        logger.debug("Starting camera process with show: {}, tracking: {}, compute_point_cloud: {}".format(show.value, tracking.value, compute_point_cloud.value))
-        camera = DepthCamera(parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
+        logger.debug("Starting camera {} process with show: {}, tracking: {}, compute_point_cloud: {}".format(camera_serial.value, show.value, tracking.value, compute_point_cloud.value))
+        camera = depthcamera.DepthCamera(camera_serial=camera_serial.value, parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
         parameter.update(camera.parameter)
-        changed = False
+        # camera_serial.value = "Test1"
+
         running.value = True
         while running.value:
             with self._lock_camera:
@@ -349,12 +373,14 @@ class MultiprocessEmioCamera:
                 
                 del hsv_frame[:]
                 hsv_frame.append(camera.hsvFrame)
+                
                 del mask_frame[:]
                 mask_frame.append(camera.maskFrame)
-                self._mask_frame = camera.maskFrame
+
                 if tracking:
                     del trackers_pos[:]
                     trackers_pos.extend(camera.trackers_pos)
+
                 if compute_point_cloud:
                     del point_cloud[:]
                     point_cloud.append(camera.point_cloud)
