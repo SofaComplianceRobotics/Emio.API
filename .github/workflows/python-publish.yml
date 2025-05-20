@@ -46,6 +46,13 @@ jobs:
         run: |
           echo "RELEASE_DATE=$(date +'%Y-%m-%d (at %T UTC)')" >> $GITHUB_ENV
 
+      - name: Delete old release
+        uses: dev-drprasad/delete-tag-and-release@v1.0.1
+        with:
+          tag_name: release-${{ github.ref_name }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          delete_release: true
+          
       - name: Create Release
         if: success() || failure()
         uses: softprops/action-gh-release@v2
