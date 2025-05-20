@@ -206,7 +206,7 @@ class EmioMotors:
     def printStatus(self):
         """Print the current position of the motors."""
         with self._lock:
-            logger.info(f"Current position of the motors in pulses: {self._mg.getCurrentPosition()}")
+            logger.info(f"Current position of the motors in radians: {[ a%3.14 for a in self.pulseToRad(self._mg.getCurrentPosition())]}")
 
     
 

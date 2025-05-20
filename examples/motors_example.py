@@ -22,6 +22,7 @@ def main(emio: EmioMotors, loops=1):
 
     for i in range(loops):
         new_pos = [((2*3.14)*((i+1)%8)/8)] * 4
+        print("-"*20)
         logger.info(f"new_pos {new_pos}")
         try:
             if emio.is_connected:
