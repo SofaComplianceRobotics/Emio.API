@@ -170,20 +170,34 @@ class EmioAPI:
         if device_name is None:
             device_name = EmioAPI.listUnusedEmioDevices()[0] if len(EmioAPI.listUnusedEmioDevices())>0 else None
 
-        # Get the index of the device
-        self.device_index = EmioAPI.listEmioDevices().index(device_name)
+        connected = self.motors.open(device_name)
 
-        # Get camera serial
-        camera_serial = EmioAPI.listCameraDevices()[self.device_index]
-
-        logger.info(f"Connecting to emio number {self.device_index} on port: {device_name} with camera serial: {camera_serial}")
-
-
-        if self.motors.open(device_name):
+        if connected: # try to connect to the given device name or the first one
             EmioAPI._emio_list[self.motors.device_name] = self
+            self.device_index = EmioAPI.listEmioDevices().index(device_name) # Get the index of the device
+            camera_serial = EmioAPI.listCameraDevices()[self.device_index] # Get camera serial
+
+            logger.info(f"Connecting to emio number {self.device_index} on port: {device_name} with camera serial: {camera_serial}")
 
             if self.camera.open(camera_serial):
                 return True
+            else:
+                return False
+        else: # If could not connect, try the other ones
+            self.device_index = 0
+            while not connected or self.device_index<len(EmioAPI.listEmioDevices()):
+                device_name = EmioAPI.listUnusedEmioDevices()[self.device_index]
+                camera_serial = EmioAPI.listCameraDevices()[self.device_index]
+
+                logger.info(f"Connecting to emio number {self.device_index} on port: {device_name} with camera serial: {camera_serial}")
+
+                connected = self.motors.open(device_name)
+
+                if connected and self.camera.open(camera_serial):
+                    return True
+                
+                self.device_index += 1
+
         return False
     
 
