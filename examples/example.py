@@ -86,7 +86,7 @@ def main():
         return
     except Exception as e:
         logger.exception(f"Failed running camera: {e}")
-        emio.close()
+        emio.disconnect()
         return
 
 

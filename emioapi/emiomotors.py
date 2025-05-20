@@ -50,6 +50,7 @@ class EmioMotors:
     _goal_velocity: list = field(default_factory=lambda: [0] * len(emioparameters.DXL_IDs))
     _goal_position: list = field(default_factory=lambda: [0] * len(emioparameters.DXL_IDs))
     _mg: motorgroup.MotorGroup = None
+    _device_index: int = None
 
 
 
@@ -150,9 +151,48 @@ class EmioMotors:
             device_name: str: if set, it will connect to the device with the given name, If not set, the first emio device will be used.
         """
         if self._openAndConfig(device_name):
+            self._device_index = motorgroup.listMotors().index(self._mg.deviceName)
             logger.info(f"Connected to emio device: {self._mg.deviceName}")
             return True
         return False
+
+
+    def findAndOpen(self, device_name: str=None) -> int:
+        """
+        Iterate over the serial ports and try to conenct to the first available emio motors. 
+
+        Args:
+            device_name: str: If set, It will try to connected to the given device name (port name)
+
+        Returns:
+            the index in the list of port to which it connected. If no connection was possible, returns -1.
+        """
+        if device_name is not None:
+            try:
+                index = motorgroup.listMotors().index(device_name)
+                logger.info(f"Trying given emio number {index} on port: {device_name}.")
+                self.open(device_name)
+                return index if len(motorgroup.listMotors())>0 and self.open(device_name) else -1
+            except:
+                return -1
+
+        index = 0
+
+        connected = False
+        try:
+
+            while not connected and index<len(motorgroup.listMotors()):
+                device_name = motorgroup.listMotors()[index]
+                logger.info(f"Trying emio number {index} on port: {device_name}.")
+                connected = self.open(device_name)
+
+                if connected:
+                    self._device_index = index
+                    return self.device_index
+                index += 1
+        except:
+            return -1
+        return -1
 
 
     def close(self):
@@ -221,6 +261,7 @@ class EmioMotors:
         with self._lock:
             self._mg.setGoalVelocity(velocities)
 
+
     @property
     def max_velocity(self)-> list:
         """Get the current velocity (rev/min) profile of the motors."""
@@ -243,11 +284,19 @@ class EmioMotors:
         with self._lock:
             return self._mg.isConnected
         
+
     @property
     def device_name(self) -> str:
         """Get the name of the device."""
         with self._lock:
             return self._mg.deviceName
+        
+    
+    @property
+    def device_index(self) -> int:
+        """Get the index of the device in the list of Emio Devices from EmioAPI"""
+        return self._device_index
+    
 
     @property
     def moving(self) -> list:
@@ -255,6 +304,7 @@ class EmioMotors:
         with self._lock:
             return self._mg.isMoving()
     
+
     @property
     def moving_status(self) -> list:
         """Get the moving status of the motors.
@@ -265,18 +315,21 @@ class EmioMotors:
         with self._lock:
             return self._mg.getMovingStatus()
     
+
     @property
     def velocity(self) -> list:
         """Get the current velocity (rev/min) of the motors."""
         with self._lock:
             return self._mg.getCurrentVelocity()
     
+
     @property
     def velocity_trajectory(self)-> list:
         """Get the velocity (rev/min) trajectory of the motors."""
         with self._lock:
             return self._mg.getVelocityTrajectory()
     
+
     @property
     def position_trajectory(self)-> list:
         """Get the position (pulse) trajectory of the motors."""

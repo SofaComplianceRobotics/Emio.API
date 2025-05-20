@@ -162,42 +162,22 @@ class EmioAPI:
         Connect to the emio device with the given name.
         
         Args:
-            device_name: str: The name of the device to connect to. If None, the first device found that is not used in this process will be the chosen one.
+            device_name: str: The name of the device to connect to. If None, the first device found that is not used will be used.
 
         Returns:
             True if the connection is successful, False otherwise.
         """
-        if device_name is None:
-            device_name = EmioAPI.listUnusedEmioDevices()[0] if len(EmioAPI.listUnusedEmioDevices())>0 else None
+        connected_index = self.motors.findAndOpen(device_name)
 
-        connected = self.motors.open(device_name)
-
-        if connected: # try to connect to the given device name or the first one
+        if connected_index>=0: # try to connect to the camera if foud a Emio to connect to
+            self.device_index = connected_index
             EmioAPI._emio_list[self.motors.device_name] = self
-            self.device_index = EmioAPI.listEmioDevices().index(device_name) # Get the index of the device
-            camera_serial = EmioAPI.listCameraDevices()[self.device_index] # Get camera serial
+            camera_serial = EmioAPI.listCameraDevices()[self.device_index]
 
-            logger.info(f"Connecting to emio number {self.device_index} on port: {device_name} with camera serial: {camera_serial}")
+            logger.info(f"Connecting to emio number {self.device_index} on port: {self.motors.device_name} with camera serial: {camera_serial}")
 
             if self.camera.open(camera_serial):
                 return True
-            else:
-                return False
-        else: # If could not connect, try the other ones
-            self.device_index = 0
-            while not connected or self.device_index<len(EmioAPI.listEmioDevices()):
-                device_name = EmioAPI.listUnusedEmioDevices()[self.device_index]
-                camera_serial = EmioAPI.listCameraDevices()[self.device_index]
-
-                logger.info(f"Connecting to emio number {self.device_index} on port: {device_name} with camera serial: {camera_serial}")
-
-                connected = self.motors.open(device_name)
-
-                if connected and self.camera.open(camera_serial):
-                    return True
-                
-                self.device_index += 1
-
         return False
     
 

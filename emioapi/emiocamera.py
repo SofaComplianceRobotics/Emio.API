@@ -340,4 +340,5 @@ class EmioCamera:
         Close the camera and terminate the process. Sets the running status to False.
         """
         self._running = False
-        self._camera.close()
+        if self._camera is not None: 
+            self._camera.close()
