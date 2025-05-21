@@ -24,7 +24,7 @@ class MultiprocessEmioCamera:
     This class creates a process using mulltiprocessing to handle the camera.
 
     :::warning
-    This class doe NOT work in a SOFA scene. The multiprocessing clashes with SOFA.
+    This class does **not** work in a SOFA scene. The multiprocessing clashes with SOFA.
     If you want to use the camera in a SOFA scene, use the not-paralelized version of the class: [EmioCamera](#EmioCamera)
     :::
 
