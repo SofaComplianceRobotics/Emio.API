@@ -52,6 +52,9 @@ jobs:
             emio-api.md
 
   release:
+    name: Create Release
+    needs:
+      - build
     runs-on: windows-latest
     
     steps:
