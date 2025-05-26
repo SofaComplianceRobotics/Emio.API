@@ -66,7 +66,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-dists
-          path: dist/
+          path: artifacts/
          
       - name: Set env vars and rename executables
         shell: powershell
@@ -92,8 +92,8 @@ jobs:
           body: |
             Last updated on ${{ env.RELEASE_DATE }}.
           files: |
-            dist/*
-            emio-api.md
+            artifacts/dist/*
+            artifacts/emio-api.md
             
           
   publish-to-testpypi:
