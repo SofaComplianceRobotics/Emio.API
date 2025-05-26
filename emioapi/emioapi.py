@@ -1,9 +1,16 @@
-# Example on how to control the angles of 3 motors (Dynamixel PM42-010-S260-R) 
-# The motors should be connected to /dev/ttyUSB0 with a baudrate of 4000000 and have the id's (1,2,3)
-#
-# To change the configuration, either change the 
-#
-# The spec of the motors : https://emanual.robotis.com/docs/en/dxl/x/xm430-w210/
+"""
+[Emio API](https://github.com/SofaComplianceRobotics/Emio.API) is a Python package created to control the [Emio robot](https://compliance-robotics.com/compliance-lab/).
+
+To install it from PyPI, run the following command: 
+```bash
+pip install emioapi
+```
+
+To install the latest version from the Github repository, run:  
+```bash
+pip install git+https://github.com/SofaComplianceRobotics/Emio.API.git@main
+```
+"""
 
 import logging
 from dataclasses import field
