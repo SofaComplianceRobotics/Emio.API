@@ -62,9 +62,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-dists
-          path: |
-            dist/
-            emio-api.md
+          path: dist/
          
       - name: Set env vars and rename executables
         shell: powershell
