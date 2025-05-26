@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write
       packages: write
@@ -34,17 +34,19 @@ jobs:
           python-version: "3.x"
 
       - name: Build release distributions
+        shell: powershell
         run: |
-          # NOTE: put your own distribution build steps here.
           python -m pip install build pydoc-markdown
           python -m build
           pydoc-markdown
-          sed -i "1s/.*/# Emio API/" emio-api.md
+          $file = get-content emio-api.md
+          $file | ForEach-Object {if ($_.ReadCount -eq 1) {$_ -replace "^.*", "#Emio API"} else {$_}} | Set-Content .\emio-api.md
 
       - name: Set env vars and rename executables
-        shell: bash
+        shell: powershell
         run: |
-          echo "RELEASE_DATE=$(date +'%Y-%m-%d (at %T UTC)')" >> $GITHUB_ENV
+          $releaseDate = Get-Date -Format "yyyy-MM-dd (at HH:mm:ss UTC)"
+          echo "RELEASE_DATE=$releaseDate" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Delete old release
         uses: dev-drprasad/delete-tag-and-release@v1.0.1
