@@ -53,7 +53,7 @@ jobs:
 
   release:
     runs-on: windows-latest
-    if: always() && startsWith(github.ref, 'refs/heads/') && startsWith(github.ref, 'refs/heads/pr_') != true  # we are on a branch (not a PR), always() is used to run even if needed steps fail
+    if: always() && startsWith(github.ref, 'refs/heads/') # we are on a branch (not a PR), always() is used to run even if needed steps fail
 
     steps:
       - name: Download the artifacts
