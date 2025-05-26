@@ -10,6 +10,7 @@ name: Build, Realease and Publish Python Package with doc
 
 on: 
   workflow_dispatch:
+  pull_request:
   push:
     branches: 
       - main
@@ -40,7 +41,7 @@ jobs:
           python -m build
           pydoc-markdown
           $file = get-content emio-api.md
-          $file | ForEach-Object {if ($_.ReadCount -eq 1) {$_ -replace "^.*", "#Emio API"} else {$_}} | Set-Content .\emio-api.md
+          $file | ForEach-Object {if ($_.ReadCount -eq 1) {$_ -replace "^.*", "# Emio API"} else {$_}} | Set-Content .\emio-api.md
 
       - name: Set env vars and rename executables
         shell: powershell
