@@ -10,6 +10,7 @@ name: Build, Realease and Publish Python Package with doc
 
 on: 
   workflow_dispatch:
+  pull_request:
   push:
     branches: 
       - main
@@ -40,8 +41,30 @@ jobs:
           python -m build
           pydoc-markdown
           $file = get-content emio-api.md
-          $file | ForEach-Object {if ($_.ReadCount -eq 1) {$_ -replace "^.*", "#Emio API"} else {$_}} | Set-Content .\emio-api.md
+          $file | ForEach-Object {if ($_.ReadCount -eq 1) {$_ -replace "^.*", "# Emio API"} else {$_}} | Set-Content .\emio-api.md
 
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: |
+            dist/
+            emio-api.md
+
+  release:
+    name: Create Release
+    if: always() && startsWith(github.ref, 'refs/heads/') # we are on a branch (not a PR), always() is used to run even if needed steps fail
+    needs:
+      - build
+    runs-on: windows-latest
+    
+    steps:
+      - name: Download the artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+         
       - name: Set env vars and rename executables
         shell: powershell
         run: |
@@ -69,18 +92,11 @@ jobs:
             dist/*
             emio-api.md
             
-      - name: Upload distributions
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-dists
-          path: |
-            dist/
-            emio-api.md
           
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
      needs:
-       - build
+       - release
      runs-on: ubuntu-latest
      if: startsWith(github.event.ref, 'refs/tags/v')
 
@@ -97,6 +113,7 @@ jobs:
        with:
          name: release-dists
          path: dist/
+         
      - name: Publish distribution 📦 to TestPyPI
        uses: pypa/gh-action-pypi-publish@release/v1
        with:
