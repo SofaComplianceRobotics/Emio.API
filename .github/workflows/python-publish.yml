@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: 
+    branches:
       - main
   schedule:
     - cron: '0 3 * * *' # nightly job at 3am UTC
@@ -99,9 +99,9 @@ jobs:
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
      needs:
-       - release
+       - build
      runs-on: ubuntu-latest
-     if: startsWith(github.event.ref, 'refs/tags/v')
+     if: startsWith(github.ref, 'refs/tags/v') # publish only if tag strats with 'v'
      environment:
        name: testpypi-emioapi
        url: https://test.pypi.org/p/emioapi
@@ -113,40 +113,35 @@ jobs:
        uses: actions/download-artifact@v4
        with:
          name: release-dists
-         path: dist/
+         path: artifacts/
          
      - name: Publish distribution 📦 to TestPyPI
        uses: pypa/gh-action-pypi-publish@release/v1
        with:
          repository-url: https://test.pypi.org/legacy/
+         packages-dir: artifacts/dist
           
-  # pypi-publish:
-  #   runs-on: ubuntu-latest
-  #   needs:
-  #     - release-build
-  #   permissions:
-  #     # IMPORTANT: this permission is mandatory for trusted publishing
-  #     id-token: write
+  pypi-publish:
+    name: Publish Python 🐍 distribution 📦 to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    environment: # Dedicated environments with protections for publishing are strongly recommended.
+      name: pypi-emioapi
+      url: https://pypi.org/p/emioapi
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
 
-  #   # Dedicated environments with protections for publishing are strongly recommended.
-  #   # For more information, see: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment#deployment-protection-rules
-  #   environment:
-  #     name: pypi
-  #     # OPTIONAL: uncomment and update to include your PyPI project URL in the deployment status:
-  #     # url: https://pypi.org/p/YOURPROJECT
-  #     #
-  #     # ALTERNATIVE: if your GitHub Release name is the PyPI project version string
-  #     # ALTERNATIVE: exactly, uncomment the following line instead:
-  #     # url: https://pypi.org/project/YOURPROJECT/${{ github.event.release.name }}
 
-  #   steps:
-  #     - name: Retrieve release distributions
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: release-dists
-  #         path: dist/
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: artifacts/
 
-  #     - name: Publish release distributions to PyPI
-  #       uses: pypa/gh-action-pypi-publish@release/v1
-  #       with:
-  #         packages-dir: dist/
+      - name: Publish release distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/dist
