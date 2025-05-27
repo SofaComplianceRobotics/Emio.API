@@ -14,7 +14,6 @@ on:
   push:
     branches:
       - main
-    tags:
   schedule:
     - cron: '0 3 * * *' # nightly job at 3am UTC
 
