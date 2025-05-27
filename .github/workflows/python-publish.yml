@@ -99,7 +99,7 @@ jobs:
   publish-to-testpypi:
      name: Publish Python 🐍 distribution 📦 to TestPyPI
      needs:
-       - release
+       - build
      runs-on: ubuntu-latest
      if: startsWith(github.event.ref, 'refs/tags/v')
      environment:
