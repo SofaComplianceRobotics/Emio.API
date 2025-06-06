@@ -79,7 +79,7 @@ class DepthCamera:
     initialized = False
     pc = None
     compute_point_cloud = False
-    parameter = None
+    parameter = {}
     tracking = True
     trackers_pos = []
     maskWindow = None
@@ -130,13 +130,15 @@ class DepthCamera:
             self.parameter = parameter
         else:
             try:
+                logger.debug(f"Opening config file {CONFIG_FILENAME}")
                 with open(CONFIG_FILENAME, 'r') as fp:
-                    self.parameter = json.load(fp)
-                    logger.debug(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
+                    json_parameters = json.load(fp)
+                    self.parameter.update(json_parameters)
+                    logger.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
                 logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
-                self.parameter = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
+                self.parameter.update({"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100})
         
         default_param = self.parameter.copy()
 
@@ -228,10 +230,6 @@ class DepthCamera:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
         return True, color_image, depth_image, depth_frame
-
-    def on_change(self, value):
-        for key, val in self.parameter.items():
-            self.parameter[key] = cv.getTrackbarPos(key, 'mask')
 
     def update(self):
         ret, frame, depth_image, depth_frame = self.get_frame()

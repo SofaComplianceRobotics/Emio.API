@@ -26,6 +26,10 @@ authors = [
 Repository = "https://github.com/SofaComplianceRobotics/Emio.API"
 
 
+[tool.setuptools.package-data]
+emioapi = ["cameraparameter.json"]
+
+
 #######
 # Configuration for pydoc-markdown
 
