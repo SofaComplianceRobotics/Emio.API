@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 def main(emio: EmioCamera):
 
+    emio.calibrate()  # calibrate the camera if needed
+
     while emio.is_running:
         try:
             emio.update() # update the camera frame and trackers
@@ -23,6 +25,7 @@ def main(emio: EmioCamera):
             logger.info(f"Camera compute point cloud: {emio.compute_point_cloud}")
             logger.info(f"Camera is running: {emio.is_running}")
             logger.info(f"Count tracker positions: {len(emio.trackers_pos)}")
+            logger.info(f"Count tracker: {emio.trackers_pos}")
             logger.info(f"Point cloud shape: {emio.point_cloud.shape}")
             logger.info(f"HSV Frame shape: {emio.hsv_frame.shape}")
             logger.info(f"Mask Frame shape: {emio.mask_frame.shape}")

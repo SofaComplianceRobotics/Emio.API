@@ -284,6 +284,29 @@ class EmioCamera:
         """
         return depthcamera.listCameras()
     
+    @staticmethod
+    def camera_to_emio(position: list) -> list:
+        """
+        Convert the real world position into the simulation pose of emio
+
+        Args:
+            position: list[float]: The position in camera frame
+
+        Returns:
+            list[float]: The position in the simulation frame 
+        """
+        # Convert the position from our frame to the simulation's frame
+        x= -position[1]*10+48.743
+        z= -position[0]*10+76.842
+        y= position[2]*10-296
+        qx=0
+        qy=0
+        qz=0
+        qw=0
+        pose=[x, y, z, qx, qy, qz, qw]
+
+        return pose
+    
 
     def open(self, camera_serial: str=None) -> bool:
         """
@@ -321,6 +344,15 @@ class EmioCamera:
             self._running = False
             logger.error("Error opening camera: "+str(e))
             return False
+        
+        
+    def calibrate(self):
+        """
+        Calibrate the camera.
+
+        """
+        self._camera.calibrate()
+
 
     def update(self):
         """
@@ -331,7 +363,11 @@ class EmioCamera:
             self._hsv_frame = self._camera.hsvFrame
             self._mask_frame = self._camera.maskFrame
             if self._tracking:
-                self._trackers_pos = self._camera.trackers_pos
+                self._trackers_pos = []
+                for p_camera in self._camera.trackers_pos:
+                    p_emio = EmioCamera.camera_to_emio(p_camera)
+                    self._trackers_pos.append(p_emio[0:3])
+                logger.debug(f"Trackers positions in camera frame: {self._camera.trackers_pos}, converted to Emio frame: {self._trackers_pos}")
             if self._compute_point_cloud:
                     self._point_cloud = self._camera.point_cloud
         
