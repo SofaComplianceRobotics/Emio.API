@@ -217,10 +217,9 @@ class DepthCamera:
         # Wait for a coherent pair of frames: depth and color
 
         frames = self.pipeline.wait_for_frames()
-        aligned_frame = rs.align(rs.stream.color).process(frames)
 
-        depth_frame = aligned_frame.get_depth_frame()
-        color_frame = aligned_frame.get_color_frame()
+        depth_frame = frames.get_depth_frame()
+        color_frame = frames.get_color_frame()
 
         if not depth_frame or not color_frame:
             logger.debug('no frame')
