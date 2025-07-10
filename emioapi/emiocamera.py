@@ -267,6 +267,15 @@ class EmioCamera:
             else:
                 return None
             
+    @property
+    def calibration_status(self) -> int:
+        """
+        Get the calibration status of the camera.
+        Returns:
+            int: The calibration status of the camera.
+        """
+        return self._camera.calibration_status
+            
 
 
     ##########################
@@ -296,14 +305,11 @@ class EmioCamera:
             list[float]: The position in the simulation frame 
         """
         # Convert the position from our frame to the simulation's frame
-        x= -position[1]*10+48.743
-        z= -position[0]*10+76.842
-        y= position[2]*10-296
         qx=0
         qy=0
         qz=0
         qw=0
-        pose=[x, y, z, qx, qy, qz, qw]
+        pose=[position[0], position[1], position[2], qx, qy, qz, qw]
 
         return pose
     

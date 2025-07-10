@@ -5,13 +5,14 @@ from time import sleep
 import time
 import tkinter as tk
 from tkinter import ttk
+from enum import Enum
 
 import numpy as np
 import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-from ._positionestimation import PositionEstimation
+from ._positionestimation import PositionEstimation, pixels_to_mm
 
 FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -19,36 +20,10 @@ logger = logging.getLogger(__name__)
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 
-
-def convert_depth_pixel_to_metric_coordinate(depth, pixel_x, pixel_y, camera_intrinsics):
-    """
-    Convert the depth and image point information to metric coordinates
-
-    Parameters:
-    -----------
-    depth 	 	 	 : double
-                                               The depth value of the image point
-    pixel_x 	  	 	 : double
-                                               The x value of the image coordinate
-    pixel_y 	  	 	 : double
-                                                    The y value of the image coordinate
-    camera_intrinsics : The intrinsic values of the imager in whose coordinate
-                        system the depth_frame is computed
-
-        Return:
-    ----------
-    X : double
-            The x value in meters
-    Y : double
-            The y value in meters
-    Z : double
-            The z value in meters
-
-    """
-
-    X = (pixel_x - camera_intrinsics.ppx) / camera_intrinsics.fx * depth
-    Y = (pixel_y - camera_intrinsics.ppy) / camera_intrinsics.fy * depth
-    return [X, Y, depth]
+class CalibrationStatusEnum(Enum):
+    NOT_CALIBRATED = 0,
+    CALIBRATING = 1,
+    CALIBRATED = 2
 
 
 def compute_cdg(contour):
@@ -90,6 +65,7 @@ class DepthCamera:
     rootWindow = None
     hsvFrame = None
     maskFrame = None
+    calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
 
     @property
     def camera_serial(self) -> str:
@@ -151,7 +127,7 @@ class DepthCamera:
         self.position_estimator = PositionEstimation(self.intr)
         self.position_estimator.intr= self.intr
         _, color_image, depth_image, _ = self.get_frame()
-        self.position_estimator.init_position_estimation(color_image, depth_image, False)
+        self.position_estimator.init_position_estimation()
 
         if not self.position_estimator.initialized:
             logger.error('Position estimation initialization failed. Using default parameters.')
@@ -233,19 +209,28 @@ class DepthCamera:
 
     def calibrate(self):
         starttime = time.time()
-        calibrated = False
+        first = False
+        success = False
+        self.calibration_status = CalibrationStatusEnum.CALIBRATING
 
         # Create the windows to display the binrary mask and the HSV frame
         calibration_window = CameraFeedWindow(rootWindow=self.rootWindow, name='Calibration')
 
-        while not calibrated and time.time() - starttime < 300:
+        while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300: # self.position_estimator.count_calibration_frames < 100 and
             self.position_estimator.intr= self.intr
             _, color_image, depth_image, _ = self.get_frame()
-            calibrated = self.position_estimator.calibrate(color_image, depth_image, calibration_window)
+            success = self.position_estimator.calibrate_single_marker(color_image, depth_image, first, calibration_window)
+            first = success if not first else first
             self.rootWindow.update()
+
+        if success:
+            self.position_estimator.init_position_estimation()
 
         # Close the calibration window
         calibration_window.closed()
+
+        self.calibration_status = CalibrationStatusEnum.CALIBRATED if success else CalibrationStatusEnum.NOT_CALIBRATED
+        return success
 
 
     def get_frame(self):
@@ -309,11 +294,16 @@ class DepthCamera:
                         x, y = compute_cdg(contours[i])
                         if self.position_estimator is not None:
                             marker_mask = np.zeros_like(mask)
+                            worldx, worldy, worldz = self.position_estimator.image_to_3D(x, y, depth_image[y, x])
+                            self.trackers_pos.append([worldx, worldy, worldz])
                             cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
-                            depth=self.position_estimator.get_depth(marker_mask, depth_image)
-                            self.trackers_pos.append(self.position_estimator.image_to_3D( x, y, depth))
+                            cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
+                            cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth_image[y, x]})", (x, y), 
+                                cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                            cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
+                                cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         else:
-                            self.trackers_pos.append(convert_depth_pixel_to_metric_coordinate(depth_image[y, x], x, y, self.intr))
+                            self.trackers_pos.append(pixels_to_mm(depth_image[y, x], x, y, self.intr))
                         
                         if self.show_video_feed:
                             cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                
