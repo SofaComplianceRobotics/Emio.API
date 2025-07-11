@@ -107,7 +107,6 @@ class DepthCamera:
             self.parameter = parameter
         else:
             try:
-                logger.debug(f"Opening config file {CONFIG_FILENAME}")
                 with open(CONFIG_FILENAME, 'r') as fp:
                     json_parameters = json.load(fp)
                     self.parameter.update(json_parameters)
@@ -130,8 +129,6 @@ class DepthCamera:
             raise Exception('Position estimation initialization failed. Please check the camera calibration.')
         
         self.initialized = True
-
-        logger.debug(f'Camera show_video_feed: {self.show_video_feed}')
 
         if self.show_video_feed:        
             self.createFeedWindows()
@@ -238,7 +235,6 @@ class DepthCamera:
         color_frame = frames.get_color_frame()
 
         if not depth_frame or not color_frame:
-            logger.debug('no frame')
             return False, color_frame, depth_frame
 
         # Convert images to numpy arrays

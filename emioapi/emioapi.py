@@ -205,4 +205,6 @@ class EmioAPI:
         with self._lock:
             if self.motors.is_connected:
                 logger.info(f"Connected to Emio device: {self.motors.device_name}")
+            else:
+                logger.info("No Emio connected.")
         

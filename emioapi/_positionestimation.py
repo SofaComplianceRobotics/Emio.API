@@ -200,7 +200,7 @@ class PositionEstimation:
                 ids.append([int(row[3])])   
             self.initialized = True
         
-        logger.debug(f"{self.initialized}. Trackers positions from config file: {self.trackers_pos}")
+        logger.debug(f"Trackers positions from config file: {self.trackers_pos}")
 
         if not self.initialized:
             return False
@@ -277,8 +277,6 @@ class PositionEstimation:
             if p[2]<5:
                 logger.error("At least one depth is not known")
                 return False
-          
-        logger.debug(f"Trackers {self.trackers_pos}")
 
         # Write the information in a CSV file for the next calibration processes
         points_2d = [(int(self.points[i][0]), int(self.points[i][1]), self.trackers_pos[i][2], ids[i][0]) for i in range(len(self.trackers_pos))]

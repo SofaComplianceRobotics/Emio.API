@@ -118,7 +118,6 @@ class EmioMotors:
 
     def _openAndConfig(self, device_name: str=None) -> bool:
         """Open the connection to the motors, configure it for position mode and enable torque sensing."""
-        logger.debug("Opening and configuring the motor group.")
         with self._lock:
             try:
                 self._mg.updateDeviceName(device_name)
@@ -193,7 +192,6 @@ class EmioMotors:
 
     def close(self):
         """Close the connection to the motors."""
-        logger.debug("Closing the connection to the motors.")
         with self._lock:
             self._mg.close()
             logger.info("Motors connection closed.")
