@@ -1,14 +1,10 @@
-import time
 import numpy as np
 import cv2 as cv
 import json
 import os
 import csv
 
-import logging
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from emioapi._logging_config import logger
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 CALIBRATION_FILENAME = os.path.dirname(__file__) + '/camera_2d_points.csv'

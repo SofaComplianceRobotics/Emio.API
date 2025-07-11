@@ -1,13 +1,9 @@
-import logging
 from dataclasses import field
 from threading import Lock
 
 import emioapi._motorgroup as motorgroup
 import emioapi._emiomotorsparameters as emioparameters
-
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from emioapi._logging_config import logger
 
 class EmioMotors:
     """

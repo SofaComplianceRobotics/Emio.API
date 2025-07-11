@@ -1,6 +1,5 @@
 import os
 import json
-import logging
 from time import sleep
 import time
 import tkinter as tk
@@ -13,10 +12,7 @@ import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
 from ._positionestimation import PositionEstimation, pixels_to_mm
-
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from emioapi._logging_config import logger
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 

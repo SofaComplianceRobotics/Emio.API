@@ -1,11 +1,7 @@
-import time
 from dynamixel_sdk import *
-import emioapi._emiomotorsparameters as MotorsParametersTemplate
-import logging
 
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+import emioapi._emiomotorsparameters as MotorsParametersTemplate
+from emioapi._logging_config import logger
 
 def listMotors():
     """

@@ -1,13 +1,8 @@
 import threading
-import logging
-
 import numpy as np
 
 import emioapi._depthcamera as depthcamera
-
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from emioapi._logging_config import logger
 
 
 class EmioCamera:
