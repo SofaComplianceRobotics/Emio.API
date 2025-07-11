@@ -147,8 +147,6 @@ class MotorGroup:
         """Check if the motor group is connected."""
         try:
             if self.portHandler and self.portHandler.is_open  and self._isDeviceDetected():
-                logger.debug(f"Trying to check connection on {self.deviceName}")
-                # self.groupSyncReadMoving.txRxPacket() # Check if the port is open. This call fails if the port is disconnected.
                 return True
         except Exception as e:
             logger.exception(f"Failed to check connection: {e}")

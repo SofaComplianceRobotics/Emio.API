@@ -177,7 +177,7 @@ class DepthCamera:
         self.show_video_feed = False
         self.rootWindow = None
 
-    def init_realsense(self, camera_serial=None):
+    def init_realsense(self, camera_serial: str=None):
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
         self.config = rs.config()
