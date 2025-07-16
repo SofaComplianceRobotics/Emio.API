@@ -1,7 +1,7 @@
 import threading
 import numpy as np
 
-import emioapi._depthcamera as depthcamera
+from emioapi._depthcamera import *
 from emioapi._logging_config import logger
 
 
@@ -56,7 +56,7 @@ class EmioCamera:
     """
     _lock = threading.Lock()
     _compute_point_cloud: bool = False
-    _camera: depthcamera.DepthCamera = None
+    _camera: DepthCamera = None
     _tracking: bool = True
     _running: bool = False
     _parameter: dict = None
@@ -286,7 +286,7 @@ class EmioCamera:
         Returns:
             list: A list of the serial numbers as string.
         """
-        return depthcamera.listCameras()
+        return listCameras()
     
     @staticmethod
     def camera_to_emio(position: list) -> list:
@@ -331,7 +331,7 @@ class EmioCamera:
                 self.camera_serial = camera_serial
 
             logger.debug("Starting camera with show: {}, tracking: {}, compute_point_cloud: {}".format(self._show, self._tracking, self._compute_point_cloud))
-            self._camera = depthcamera.DepthCamera(camera_serial=self.camera_serial, parameter=self._parameter, 
+            self._camera = DepthCamera(camera_serial=self.camera_serial, parameter=self._parameter, 
                                 compute_point_cloud=self._compute_point_cloud, 
                                 show_video_feed=self._show, 
                                 tracking=self._tracking)

@@ -8,6 +8,7 @@ from emioapi._logging_config import logger
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 CALIBRATION_FILENAME = os.path.dirname(__file__) + '/camera_2d_points.csv'
+COUNT_POINTS = 9 # Number of points in the calibration board (4 corners + 4 middle points + 1 center)
 
 
 def rigid_transform_3D(image_cloud:np.ndarray, absolute_cloud:np.ndarray)  -> tuple[np.ndarray, np.ndarray]:
@@ -112,7 +113,7 @@ class PositionEstimation:
     """
 
     def __init__(self, cameraintrinsinc) -> None:
-        self.absolute_positions=np.zeros((9, 3))
+        self.absolute_positions=np.zeros((COUNT_POINTS, 3))
         self.R=np.zeros((9,3))
         self.t=np.zeros((3))
         self.intr= cameraintrinsinc if cameraintrinsinc else None
@@ -120,18 +121,20 @@ class PositionEstimation:
         self.trackers_pos = []
         self.initialized = False
         self.count_calibration_frames = 0
-        self.calibrationboard_size = (100.0, 3.0, 100.0)  # Size of the calibration board in meters
+        self.calibrationboard_size = (70.0, 73.0, 70.0)  # Size of the calibration board in mm (width, height, depth)
 
         hypotenuse = np.sqrt(self.calibrationboard_size[0]**2 + self.calibrationboard_size[2]**2)/2.0
         self.absolute_positions[0] = [-hypotenuse, self.calibrationboard_size[1], 0.0]
         self.absolute_positions[1] = [0.0, self.calibrationboard_size[1], -hypotenuse]
         self.absolute_positions[2] = [hypotenuse, self.calibrationboard_size[1], 0.0]
         self.absolute_positions[3] = [0.0, self.calibrationboard_size[1], hypotenuse]
+        # Calculate the middle points of the edges
         self.absolute_positions[4] = (self.absolute_positions[0] + self.absolute_positions[1]) /2.0
         self.absolute_positions[5] = (self.absolute_positions[1] + self.absolute_positions[2]) /2.0
         self.absolute_positions[6] = (self.absolute_positions[2] + self.absolute_positions[3]) /2.0
         self.absolute_positions[7] = (self.absolute_positions[3] + self.absolute_positions[0]) /2.0
-        self.absolute_positions[8] = [0, self.calibrationboard_size[1], 0] # center of the calibration board
+        # Add the center of the calibration board
+        self.absolute_positions[-1] = [0, self.calibrationboard_size[1], 0]
 
         logger.info(f"Absolute positions: {self.absolute_positions}")
 
@@ -327,25 +330,24 @@ class PositionEstimation:
             return False
         
         if not aggregate:
-            self.trackers_pos = np.zeros((9, 3))
-            self.points = np.zeros((9, 2))  # Initialize points array with 5 points and 2 coordinates (x, y)
+            self.trackers_pos = np.zeros((COUNT_POINTS, 3))
+            self.points = np.zeros((COUNT_POINTS, 2))  # Initialize points array with 5 points and 2 coordinates (x, y)
             self.count_calibration_frames = 0
 
         # Add the corners positions of the marker to the 2D points and trackers_pos lists
-        temp_points = np.zeros((9, 2))
-        temp_trackers_pos = np.zeros((9, 3))
+        temp_points = np.zeros((COUNT_POINTS, 2))
+        temp_trackers_pos = np.zeros((COUNT_POINTS, 3))
         for i in range(len(corners[0][0])):
             corner=corners[0][0][i]
             depth= depth_image[int(corner[1])][int(corner[0])]
             if depth == 0:
-                logger.error(f"Depth value is 0 for corner {i} at position ({corner[0]}, {corner[1]})")
+                logger.debug(f"Skipping frame: Depth value is 0 for corner {i} at position ({corner[0]}, {corner[1]})")
                 return False
 
             temp_points[i] = [corner[0], corner[1]]
             temp_trackers_pos[i] = pixels_to_mm(depth, corner[0], corner[1], self.intr)
         
-        # Add the the middle points between the corners 
-        # TODO: Check if maybe we can delete these points
+        # Add the the middle points between the corners
         for i in range(4):
             next_i = (i + 1) % 4
             temp_points[4 + i] = [
@@ -362,7 +364,7 @@ class PositionEstimation:
         for i in range(4, 8):
             depth = depth_image[int(temp_points[i][1])][int(temp_points[i][0])]
             if depth == 0:
-                logger.error(f"Depth value is 0 for corner {i} at position ({temp_points[i][0]}, {temp_points[i][1]})")
+                logger.debug(f"Skipping frame: Depth value is 0 for corner {i} at position ({temp_points[i][0]}, {temp_points[i][1]})")
                 return False
             temp_trackers_pos[i][2] = depth
 
@@ -374,10 +376,10 @@ class PositionEstimation:
         # Adds the center of the marker to the points and trackers_pos lists
         depth= depth_image[y][x]
         if depth == 0:
-                logger.error(f"Depth value is 0 for corner {i} at position ({corner[0]}, {corner[1]})")
+                logger.debug(f"Skipping frame: Depth value is 0 for corner {i} at position ({corner[0]}, {corner[1]})")
                 return False
-        temp_points[8] = [x, y]
-        temp_trackers_pos[8] = pixels_to_mm(depth, x, y, self.intr)
+        temp_points[-1] = [x, y]
+        temp_trackers_pos[-1] = pixels_to_mm(depth, x, y, self.intr)
 
 
         # If the calibration is not aggregated, reset the points and trackers_pos lists, else add the new points and trackers_pos to the existing lists
@@ -387,7 +389,7 @@ class PositionEstimation:
         self.count_calibration_frames += 1
 
         # Write the information in a CSV file for the next calibration processes
-        points_2d = [(int(self.points[i][0]/self.count_calibration_frames), int(self.points[i][1]/self.count_calibration_frames), self.trackers_pos[i][2]/self.count_calibration_frames, ids[0][0]) for i in range(9)]
+        points_2d = [(int(self.points[i][0]/self.count_calibration_frames), int(self.points[i][1]/self.count_calibration_frames), self.trackers_pos[i][2]/self.count_calibration_frames, ids[0][0]) for i in range(len(self.points))]
         with open(CALIBRATION_FILENAME, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['X', 'Y', 'Depth', 'id'])  # En-tête
@@ -400,11 +402,13 @@ class PositionEstimation:
         cv.circle(frame, (int(corners[0][0][2][0]), int(corners[0][0][2][1])), 2, (0, 255, 0), -1)
         cv.circle(frame, (int(corners[0][0][3][0]), int(corners[0][0][3][1])), 2, (0, 255, 255), -1)
         # draw 2D points on the frame
-        [cv.circle(frame, (int(points_2d[i][0]), int(points_2d[i][1])), 5, (0, 0, 255), 1) for i in range(9)]
+        [cv.circle(frame, (int(points_2d[i][0]), int(points_2d[i][1])), 5, (0, 0, 255), 1) for i in range(len(points_2d))]
         [cv.putText(frame, f"{i} ({int(corners[0][0][i][0])}, {int(corners[0][0][i][1])}, {depth_image[int(corners[0][0][i][1]),int(corners[0][0][i][0])]}) ", 
                         (int(corners[0][0][i][0]), int(corners[0][0][i][1])), 
-                        cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1) for i in range(4)]
-        
+                        cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1) for i in range(len(corners[0][0]))]
+        frame = cv.putText(frame, f"Calibration progress: {self.count_calibration_frames}/200", (10, 30), 
+                            cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
         if window:
             window.set_frame(frame)
 

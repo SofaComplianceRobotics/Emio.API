@@ -9,8 +9,7 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+'/..')
 from emioapi import MultiprocessEmioCamera
-
-logger = logging.getLogger(__name__)
+from emioapi._logging_config import logger
 
 
 def main():
