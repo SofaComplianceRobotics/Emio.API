@@ -12,7 +12,6 @@ pip install git+https://github.com/SofaComplianceRobotics/Emio.API.git@main
 ```
 """
 
-import logging
 from dataclasses import field
 
 from threading import Lock
@@ -20,10 +19,7 @@ from threading import Lock
 from emioapi import EmioMotors, motorgroup
 from emioapi import MultiprocessEmioCamera
 from emioapi import EmioCamera, emiocamera
-
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from emioapi._logging_config import logger
 
 class EmioAPI:
     """
@@ -209,4 +205,6 @@ class EmioAPI:
         with self._lock:
             if self.motors.is_connected:
                 logger.info(f"Connected to Emio device: {self.motors.device_name}")
+            else:
+                logger.info("No Emio connected.")
         
