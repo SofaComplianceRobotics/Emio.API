@@ -349,8 +349,8 @@ class EmioCamera:
         
     def calibrate(self):
         """
-        Calibrate the camera.
-
+        Calibrate the camera. You need to set up Emio in the calibration configuration before calling this method.
+        See the [Emio documentation](https://docs-support.compliance-robotics.com/docs/next/Users/Emio/getting-started-with-emio/).
         """
         self._camera.calibrate()
 
