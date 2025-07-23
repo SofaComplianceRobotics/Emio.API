@@ -1,13 +1,8 @@
 import threading
-import logging
-
 import numpy as np
 
-import emioapi._depthcamera as depthcamera
-
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from emioapi._depthcamera import *
+from emioapi._logging_config import logger
 
 
 class EmioCamera:
@@ -61,7 +56,7 @@ class EmioCamera:
     """
     _lock = threading.Lock()
     _compute_point_cloud: bool = False
-    _camera: depthcamera.DepthCamera = None
+    _camera: DepthCamera = None
     _tracking: bool = True
     _running: bool = False
     _parameter: dict = None
@@ -186,7 +181,7 @@ class EmioCamera:
         Returns:
             dict: The camera parameters.
         """
-        return self._camera.parameter
+        return self._camera.parameter if self._camera else DEFAULT_CAMERA_PARAMS
     
 
     @parameters.setter
@@ -267,6 +262,15 @@ class EmioCamera:
             else:
                 return None
             
+    @property
+    def calibration_status(self) -> int:
+        """
+        Get the calibration status of the camera.
+        Returns:
+            int: The calibration status of the camera. -1 if camera is None
+        """
+        return self._camera.calibration_status if self._camera  else -1
+            
 
 
     ##########################
@@ -282,7 +286,7 @@ class EmioCamera:
         Returns:
             list: A list of the serial numbers as string.
         """
-        return depthcamera.listCameras()
+        return listCameras()
     
 
     def open(self, camera_serial: str=None) -> bool:
@@ -307,7 +311,7 @@ class EmioCamera:
                 self.camera_serial = camera_serial
 
             logger.debug("Starting camera with show: {}, tracking: {}, compute_point_cloud: {}".format(self._show, self._tracking, self._compute_point_cloud))
-            self._camera = depthcamera.DepthCamera(camera_serial=self.camera_serial, parameter=self._parameter, 
+            self._camera = DepthCamera(camera_serial=self.camera_serial, parameter=self._parameter, 
                                 compute_point_cloud=self._compute_point_cloud, 
                                 show_video_feed=self._show, 
                                 tracking=self._tracking)
@@ -321,19 +325,34 @@ class EmioCamera:
             self._running = False
             logger.error("Error opening camera: "+str(e))
             return False
+        
+        
+    def calibrate(self):
+        """
+        Calibrate the camera. You need to set up Emio in the calibration configuration before calling this method.
+        See the [Emio documentation](https://docs-support.compliance-robotics.com/docs/next/Users/Emio/getting-started-with-emio/).
+        """
+        if self._camera is not None:
+            self._camera.calibrate()
+
 
     def update(self):
         """
             Update the camera frames and tracking elements (markers and point cloud)
         """
-        self._camera.update()
-        with self._lock:
-            self._hsv_frame = self._camera.hsvFrame
-            self._mask_frame = self._camera.maskFrame
-            if self._tracking:
-                self._trackers_pos = self._camera.trackers_pos
-            if self._compute_point_cloud:
-                    self._point_cloud = self._camera.point_cloud
+        if self._camera is not None:
+            self._camera.update()
+            with self._lock:
+                self._hsv_frame = self._camera.hsvFrame
+                self._mask_frame = self._camera.maskFrame
+                if self._tracking:
+                    self._trackers_pos = []
+                    for p_camera in self._camera.trackers_pos:
+                        p_emio = [p_camera[0], p_camera[1], p_camera[2], 0, 0, 0, 1]
+                        self._trackers_pos.append(p_emio[0:3])
+                    logger.debug(f"Trackers positions in camera frame: {self._camera.trackers_pos}, converted to Emio frame: {self._trackers_pos}")
+                if self._compute_point_cloud:
+                        self._point_cloud = self._camera.point_cloud
         
     def close(self):
         """

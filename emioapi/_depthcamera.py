@@ -1,55 +1,29 @@
 import os
 import json
-import logging
 from time import sleep
+import time
 import tkinter as tk
 from tkinter import ttk
+from enum import Enum
 
 import numpy as np
 import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-
-FORMAT = "[%(levelname)s]\t[%(filename)s:%(lineno)s - %(funcName)s() ] %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-logger = logging.getLogger(__name__)
+from ._positionestimation import PositionEstimation, image_pixel_to_mm
+from emioapi._logging_config import logger
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
+DEFAULT_CAMERA_PARAMS = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
+
+class CalibrationStatusEnum(Enum):
+    NOT_CALIBRATED = 0,
+    CALIBRATING = 1,
+    CALIBRATED = 2
 
 
-def convert_depth_pixel_to_metric_coordinate(depth, pixel_x, pixel_y, camera_intrinsics):
-    """
-    Convert the depth and image point information to metric coordinates
-
-    Parameters:
-    -----------
-    depth 	 	 	 : double
-                                               The depth value of the image point
-    pixel_x 	  	 	 : double
-                                               The x value of the image coordinate
-    pixel_y 	  	 	 : double
-                                                    The y value of the image coordinate
-    camera_intrinsics : The intrinsic values of the imager in whose coordinate
-                        system the depth_frame is computed
-
-        Return:
-    ----------
-    X : double
-            The x value in meters
-    Y : double
-            The y value in meters
-    Z : double
-            The z value in meters
-
-    """
-
-    X = (pixel_x - camera_intrinsics.ppx) / camera_intrinsics.fx * depth
-    Y = (pixel_y - camera_intrinsics.ppy) / camera_intrinsics.fy * depth
-    return [X, Y, depth]
-
-
-def compute_cdg(contour):
+def compute_contour_center(contour):
     M = cv.moments(contour)
     cX = 0
     cY = 0
@@ -79,6 +53,7 @@ class DepthCamera:
     initialized = False
     pc = None
     compute_point_cloud = False
+    position_estimator: PositionEstimation = None
     parameter = {}
     tracking = True
     trackers_pos = []
@@ -87,6 +62,7 @@ class DepthCamera:
     rootWindow = None
     hsvFrame = None
     maskFrame = None
+    calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
 
     @property
     def camera_serial(self) -> str:
@@ -124,34 +100,45 @@ class DepthCamera:
 
         self.pc = rs.pointcloud()
 
+        
+
         self.trackers_pos = []
 
         if parameter:
             self.parameter = parameter
         else:
             try:
-                logger.debug(f"Opening config file {CONFIG_FILENAME}")
                 with open(CONFIG_FILENAME, 'r') as fp:
                     json_parameters = json.load(fp)
                     self.parameter.update(json_parameters)
                     logger.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
-                self.parameter.update({"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100})
+                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
+                self.parameter.update(DEFAULT_CAMERA_PARAMS)
         
         default_param = self.parameter.copy()
 
+        # Initialize the position estimation by reading the calibration file
+        self.position_estimator = PositionEstimation(self.intr)
+        self.position_estimator.intr= self.intr
+        _, color_image, depth_image, _ = self.get_frame()
+        self.position_estimator.compute_camera_to_simulation_transform()
 
-        logger.debug(f'Camera show_video_feed: {self.show_video_feed}')
+        if not self.position_estimator.initialized:
+            logger.error('Position estimation initialization failed. Using default parameters.')
+            raise Exception('Position estimation initialization failed. Please check the camera calibration.')
+        
+        self.initialized = True
 
         if self.show_video_feed:        
-            self.createWindows()
-
-        self.update() # to get a first frame
+            self.createFeedWindows()
 
 
-    def createWindows(self):
+        self.update() # to get a first frame and trackers
+
+
+    def createFeedWindows(self):
         self.rootWindow = tk.Tk()
         self.rootWindow.resizable(False, False)
         # self.rootWindow.tk.call("source", os.path.abspath("../../parts\controllers/azure_ttk_theme/azure.tcl")) # https://github.com/rdbende/Azure-ttk-theme
@@ -184,7 +171,7 @@ class DepthCamera:
         self.show_video_feed = False
         self.rootWindow = None
 
-    def init_realsense(self, camera_serial=None):
+    def init_realsense(self, camera_serial: str=None):
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
         self.config = rs.config()
@@ -213,6 +200,33 @@ class DepthCamera:
         self.profile = cfg.get_stream(rs.stream.depth)
         self.intr = self.profile.as_video_stream_profile().get_intrinsics()
 
+
+    def calibrate(self):
+        starttime = time.time()
+        first = False
+        success = False
+        self.calibration_status = CalibrationStatusEnum.CALIBRATING
+
+        # Create the windows to display the binrary mask and the HSV frame
+        calibration_window = CameraFeedWindow(rootWindow=self.rootWindow, name='Calibration')
+
+        while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300: # self.position_estimator.count_calibration_frames < 100 and
+            self.position_estimator.intr= self.intr
+            _, color_image, depth_image, _ = self.get_frame()
+            success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
+            first = success if not first else first
+            self.rootWindow.update()
+
+        if success:
+            self.position_estimator.compute_camera_to_simulation_transform()
+
+        # Close the calibration window
+        calibration_window.closed()
+
+        self.calibration_status = CalibrationStatusEnum.CALIBRATED if success else CalibrationStatusEnum.NOT_CALIBRATED
+        return success
+
+
     def get_frame(self):
         # Wait for a coherent pair of frames: depth and color
 
@@ -222,13 +236,13 @@ class DepthCamera:
         color_frame = frames.get_color_frame()
 
         if not depth_frame or not color_frame:
-            logger.debug('no frame')
             return False, color_frame, depth_frame
 
         # Convert images to numpy arrays
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
         return True, color_image, depth_image, depth_frame
+    
 
     def update(self):
         ret, frame, depth_image, depth_frame = self.get_frame()
@@ -270,12 +284,19 @@ class DepthCamera:
                 self.trackers_pos = []
                 for i, a in enumerate(areas):
                     if a > self.parameter['area']:
-                        x, y = compute_cdg(contours[i])
-                        self.trackers_pos.append(convert_depth_pixel_to_metric_coordinate(
-                            (depth_image[y, x]), x, y, self.intr))
+                        x, y = compute_contour_center(contours[i])
+                        marker_mask = np.zeros_like(mask)
+                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth_image[y, x])
+                        self.trackers_pos.append([worldx, worldy, worldz])
+                        cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
+                        cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
+                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth_image[y, x]})", (x, y), 
+                            cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
+                            cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         
                         if self.show_video_feed:
-                            cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                    
+                            cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                
 
         if self.compute_point_cloud:
             points = self.pc.calculate(depth_frame)
@@ -284,7 +305,7 @@ class DepthCamera:
 
         if self.show_video_feed:
             if self.rootWindow is None:
-                self.createWindows()
+                self.createFeedWindows()
 
             if self.maskWindow.running:
                 self.maskWindow.set_frame(self.maskFrame)
@@ -295,12 +316,14 @@ class DepthCamera:
 
             self.rootWindow.update()
 
+
     def close(self):
         if self.pipeline:
             self.pipeline.stop()
         if self.rootWindow:
             self.rootWindow.destroy()
         self.initialized = False
+
 
     def run_loop(self):
         while True:
