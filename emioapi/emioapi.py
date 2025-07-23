@@ -10,6 +10,13 @@ To install the latest version from the Github repository, run:
 ```bash
 pip install git+https://github.com/SofaComplianceRobotics/Emio.API.git@main
 ```
+
+## Camera Calibration Tool
+Once emioapi installed, you can directly call the calibration tool to calibrate the camera of Emio.
+From a terminal with a Python having the emioapi moduules intalled, run:
+```bash
+python -m emioapi calibrate
+```
 """
 
 from dataclasses import field

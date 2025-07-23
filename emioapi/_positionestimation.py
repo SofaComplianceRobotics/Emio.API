@@ -121,7 +121,11 @@ class PositionEstimation:
         self.trackers_pos = []
         self.initialized = False
         self.count_calibration_frames = 0
-        self.calibrationboard_size = (70.0, 73.0, 70.0)  # Size of the calibration board in mm (width, height, depth)
+        elevator = 70
+        arucoThickness = 3
+        platformY = -303
+        y = platformY + elevator + arucoThickness 
+        self.calibrationboard_size = (70.0, y, 70.0)  # Size of the calibration board in mm (width, height, depth)
 
         hypotenuse = np.sqrt(self.calibrationboard_size[0]**2 + self.calibrationboard_size[2]**2)/2.0
         self.absolute_positions[0] = [-hypotenuse, self.calibrationboard_size[1], 0.0]
@@ -433,6 +437,6 @@ class PositionEstimation:
         position=np.zeros((3))
         p = pixels_to_mm(depth, x, y, self.intr)
         position= self.R@p+self.t
-        return [position[0], position[1]-305.5, position[2]]
+        return [position[0], position[1], position[2]]
 
 

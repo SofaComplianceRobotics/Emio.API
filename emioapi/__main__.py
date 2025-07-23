@@ -1,6 +1,8 @@
 import emioapi
 import sys
 
+from emioapi._logging_config import logger
+
 def calibrate():
     """
     Calibrate the camera of the first Emio camera found
@@ -14,6 +16,18 @@ def calibrate():
             camera.calibrate()
         else:
             print("Camera is already calibrated.")
+
+        while camera.is_running:
+            try:
+                camera.update() # update the camera frame and trackers
+                logger.info(camera.trackers_pos)
+            except KeyboardInterrupt: 
+                logger.info("Keyboard interrupt received.")
+                break
+            except Exception as e:
+                logger.exception(f"Error during communication: {e}")
+                break
+
         camera.close()
     else:
         print("Failed to open camera.")
