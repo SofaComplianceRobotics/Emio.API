@@ -11,10 +11,11 @@ import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-from ._positionestimation import PositionEstimation, pixels_to_mm
+from ._positionestimation import PositionEstimation, image_pixel_to_mm
 from emioapi._logging_config import logger
 
 CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
+DEFAULT_CAMERA_PARAMS = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
 
 class CalibrationStatusEnum(Enum):
     NOT_CALIBRATED = 0,
@@ -22,7 +23,7 @@ class CalibrationStatusEnum(Enum):
     CALIBRATED = 2
 
 
-def compute_cdg(contour):
+def compute_contour_center(contour):
     M = cv.moments(contour)
     cX = 0
     cY = 0
@@ -52,7 +53,7 @@ class DepthCamera:
     initialized = False
     pc = None
     compute_point_cloud = False
-    position_estimator = None
+    position_estimator: PositionEstimation = None
     parameter = {}
     tracking = True
     trackers_pos = []
@@ -113,8 +114,8 @@ class DepthCamera:
                     logger.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}')
-                self.parameter.update({"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100})
+                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
+                self.parameter.update(DEFAULT_CAMERA_PARAMS)
         
         default_param = self.parameter.copy()
 
@@ -122,7 +123,7 @@ class DepthCamera:
         self.position_estimator = PositionEstimation(self.intr)
         self.position_estimator.intr= self.intr
         _, color_image, depth_image, _ = self.get_frame()
-        self.position_estimator.init_position_estimation()
+        self.position_estimator.compute_camera_to_simulation_transform()
 
         if not self.position_estimator.initialized:
             logger.error('Position estimation initialization failed. Using default parameters.')
@@ -212,12 +213,12 @@ class DepthCamera:
         while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300: # self.position_estimator.count_calibration_frames < 100 and
             self.position_estimator.intr= self.intr
             _, color_image, depth_image, _ = self.get_frame()
-            success = self.position_estimator.calibrate_single_marker(color_image, depth_image, first, calibration_window)
+            success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
             first = success if not first else first
             self.rootWindow.update()
 
         if success:
-            self.position_estimator.init_position_estimation()
+            self.position_estimator.compute_camera_to_simulation_transform()
 
         # Close the calibration window
         calibration_window.closed()
@@ -283,19 +284,16 @@ class DepthCamera:
                 self.trackers_pos = []
                 for i, a in enumerate(areas):
                     if a > self.parameter['area']:
-                        x, y = compute_cdg(contours[i])
-                        if self.position_estimator is not None:
-                            marker_mask = np.zeros_like(mask)
-                            worldx, worldy, worldz = self.position_estimator.image_to_3D(x, y, depth_image[y, x])
-                            self.trackers_pos.append([worldx, worldy, worldz])
-                            cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
-                            cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
-                            cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth_image[y, x]})", (x, y), 
-                                cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                            cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
-                                cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                        else:
-                            self.trackers_pos.append(pixels_to_mm(depth_image[y, x], x, y, self.intr))
+                        x, y = compute_contour_center(contours[i])
+                        marker_mask = np.zeros_like(mask)
+                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth_image[y, x])
+                        self.trackers_pos.append([worldx, worldy, worldz])
+                        cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
+                        cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
+                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth_image[y, x]})", (x, y), 
+                            cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
+                            cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         
                         if self.show_video_feed:
                             cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                

@@ -181,7 +181,7 @@ class EmioCamera:
         Returns:
             dict: The camera parameters.
         """
-        return self._camera.parameter
+        return self._camera.parameter if self._camera else DEFAULT_CAMERA_PARAMS
     
 
     @parameters.setter
@@ -267,9 +267,9 @@ class EmioCamera:
         """
         Get the calibration status of the camera.
         Returns:
-            int: The calibration status of the camera.
+            int: The calibration status of the camera. -1 if camera is None
         """
-        return self._camera.calibration_status
+        return self._camera.calibration_status if self._camera  else -1
             
 
 
@@ -287,26 +287,6 @@ class EmioCamera:
             list: A list of the serial numbers as string.
         """
         return listCameras()
-    
-    @staticmethod
-    def camera_to_emio(position: list) -> list:
-        """
-        Convert the real world position into the simulation pose of emio
-
-        Args:
-            position: list[float]: The position in camera frame
-
-        Returns:
-            list[float]: The position in the simulation frame 
-        """
-        # Convert the position from our frame to the simulation's frame
-        qx=0
-        qy=0
-        qz=0
-        qw=0
-        pose=[position[0], position[1], position[2], qx, qy, qz, qw]
-
-        return pose
     
 
     def open(self, camera_serial: str=None) -> bool:
@@ -352,25 +332,27 @@ class EmioCamera:
         Calibrate the camera. You need to set up Emio in the calibration configuration before calling this method.
         See the [Emio documentation](https://docs-support.compliance-robotics.com/docs/next/Users/Emio/getting-started-with-emio/).
         """
-        self._camera.calibrate()
+        if self._camera is not None:
+            self._camera.calibrate()
 
 
     def update(self):
         """
             Update the camera frames and tracking elements (markers and point cloud)
         """
-        self._camera.update()
-        with self._lock:
-            self._hsv_frame = self._camera.hsvFrame
-            self._mask_frame = self._camera.maskFrame
-            if self._tracking:
-                self._trackers_pos = []
-                for p_camera in self._camera.trackers_pos:
-                    p_emio = EmioCamera.camera_to_emio(p_camera)
-                    self._trackers_pos.append(p_emio[0:3])
-                logger.debug(f"Trackers positions in camera frame: {self._camera.trackers_pos}, converted to Emio frame: {self._trackers_pos}")
-            if self._compute_point_cloud:
-                    self._point_cloud = self._camera.point_cloud
+        if self._camera is not None:
+            self._camera.update()
+            with self._lock:
+                self._hsv_frame = self._camera.hsvFrame
+                self._mask_frame = self._camera.maskFrame
+                if self._tracking:
+                    self._trackers_pos = []
+                    for p_camera in self._camera.trackers_pos:
+                        p_emio = [p_camera[0], p_camera[1], p_camera[2], 0, 0, 0, 1]
+                        self._trackers_pos.append(p_emio[0:3])
+                    logger.debug(f"Trackers positions in camera frame: {self._camera.trackers_pos}, converted to Emio frame: {self._trackers_pos}")
+                if self._compute_point_cloud:
+                        self._point_cloud = self._camera.point_cloud
         
     def close(self):
         """

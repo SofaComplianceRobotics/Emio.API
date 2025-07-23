@@ -11,7 +11,7 @@ CALIBRATION_FILENAME = os.path.dirname(__file__) + '/camera_2d_points.csv'
 COUNT_POINTS = 9 # Number of points in the calibration board (4 corners + 4 middle points + 1 center)
 
 
-def rigid_transform_3D(image_cloud:np.ndarray, absolute_cloud:np.ndarray)  -> tuple[np.ndarray, np.ndarray]:
+def compute_transform_from_pointclouds(image_cloud:np.ndarray, absolute_cloud:np.ndarray)  -> tuple[np.ndarray, np.ndarray]:
     """
     Find the translation vector and the rotation matrix between 2 points clouds
 
@@ -52,7 +52,7 @@ def rigid_transform_3D(image_cloud:np.ndarray, absolute_cloud:np.ndarray)  -> tu
     t = centroid_B.T - R @ centroid_A.T
     return R, t
 
-def pixels_to_mm(depth: float, pixel_x: int, pixel_y: int, camera_intrinsics:object) -> list[float]:
+def image_pixel_to_mm(depth: float, pixel_x: int, pixel_y: int, camera_intrinsics:object) -> list[float]:
     """
     Convert the depth and image point information to metric coordinates in camera space.
 
@@ -84,28 +84,7 @@ def pixels_to_mm(depth: float, pixel_x: int, pixel_y: int, camera_intrinsics:obj
     X = ((pixel_x - camera_intrinsics.ppx) / camera_intrinsics.fx) * depth
     Y = ((pixel_y - camera_intrinsics.ppy) / camera_intrinsics.fy) * depth
     return [X, Y, depth]
-
-def compute_cdg(contour) -> tuple[int, int]:
-    """
-    Return the center of the contour
-
-    Args:
-    contour         : cv object list[list[int]]
-                                                The contour of the marker
-    
-    Return:
-    cX,cY           : int
-                                                The center of the contour pixel coordinates
-    """
-    M = cv.moments(contour)
-    cX = 0
-    cY = 0
-    if M['m00'] != 0:
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
-    return cX, cY
-
-    
+   
 
 class PositionEstimation:
     """
@@ -113,7 +92,7 @@ class PositionEstimation:
     """
 
     def __init__(self, cameraintrinsinc) -> None:
-        self.absolute_positions=np.zeros((COUNT_POINTS, 3))
+        self.calibration_points=np.zeros((COUNT_POINTS, 3))
         self.R=np.zeros((9,3))
         self.t=np.zeros((3))
         self.intr= cameraintrinsinc if cameraintrinsinc else None
@@ -128,19 +107,19 @@ class PositionEstimation:
         self.calibrationboard_size = (70.0, y, 70.0)  # Size of the calibration board in mm (width, height, depth)
 
         hypotenuse = np.sqrt(self.calibrationboard_size[0]**2 + self.calibrationboard_size[2]**2)/2.0
-        self.absolute_positions[0] = [-hypotenuse, self.calibrationboard_size[1], 0.0]
-        self.absolute_positions[1] = [0.0, self.calibrationboard_size[1], -hypotenuse]
-        self.absolute_positions[2] = [hypotenuse, self.calibrationboard_size[1], 0.0]
-        self.absolute_positions[3] = [0.0, self.calibrationboard_size[1], hypotenuse]
+        self.calibration_points[0] = [-hypotenuse, self.calibrationboard_size[1], 0.0]
+        self.calibration_points[1] = [0.0, self.calibrationboard_size[1], -hypotenuse]
+        self.calibration_points[2] = [hypotenuse, self.calibrationboard_size[1], 0.0]
+        self.calibration_points[3] = [0.0, self.calibrationboard_size[1], hypotenuse]
         # Calculate the middle points of the edges
-        self.absolute_positions[4] = (self.absolute_positions[0] + self.absolute_positions[1]) /2.0
-        self.absolute_positions[5] = (self.absolute_positions[1] + self.absolute_positions[2]) /2.0
-        self.absolute_positions[6] = (self.absolute_positions[2] + self.absolute_positions[3]) /2.0
-        self.absolute_positions[7] = (self.absolute_positions[3] + self.absolute_positions[0]) /2.0
+        self.calibration_points[4] = (self.calibration_points[0] + self.calibration_points[1]) /2.0
+        self.calibration_points[5] = (self.calibration_points[1] + self.calibration_points[2]) /2.0
+        self.calibration_points[6] = (self.calibration_points[2] + self.calibration_points[3]) /2.0
+        self.calibration_points[7] = (self.calibration_points[3] + self.calibration_points[0]) /2.0
         # Add the center of the calibration board
-        self.absolute_positions[-1] = [0, self.calibrationboard_size[1], 0]
+        self.calibration_points[-1] = [0, self.calibrationboard_size[1], 0]
 
-        logger.info(f"Absolute positions: {self.absolute_positions}")
+        logger.debug(f"Calibration Points: {self.calibration_points}")
 
         try:
             with open(CONFIG_FILENAME, 'r') as fp:
@@ -180,7 +159,7 @@ class PositionEstimation:
         return mask
     
 
-    def init_position_estimation(self) -> bool:
+    def compute_camera_to_simulation_transform(self) -> bool:
         """
         Initialize the rotation matrix and the translation vector based on the last calibration process
                                             
@@ -198,7 +177,7 @@ class PositionEstimation:
             for row in reader:
                 self.points.append((int(row[0]), int(row[1])))
                 self.trackers_pos.append(
-                    pixels_to_mm(
+                    image_pixel_to_mm(
                         float(row[2]),  # depth
                         int(row[0]),  #  X coordinate
                         int(row[1]),  #  Y coordinate
@@ -213,89 +192,13 @@ class PositionEstimation:
             return False
         
         self.trackers_pos = np.array(self.trackers_pos)
-        self.R, self.t = rigid_transform_3D( self.trackers_pos, self.absolute_positions)
+        self.R, self.t = compute_transform_from_pointclouds( self.trackers_pos, self.calibration_points)
         
         self.initialized = True
         return True
-
-    def calibrate(self, frame, depth_image, window=None) -> bool:
-        """
-        OLD METHOD:
-        Calibrate the camera by detecting the markers and calculating the rotation matrix and translation vector
-
-        Args:
-            frame: numpy.ndarray
-                The color image returned by the camera
-
-            depth_image: numpy.ndarray         
-                The depth image returned by the camera
-
-        Return:
-            True if the calibration process is successful, False otherwise
-        """
-        error = True
-        counted=[0, 0, 0, 0, 0, 0, 0, 0]
-        aruco_marker_side_length = 0.01
-        dictionary = cv.aruco.getPredefinedDictionary(cv.aruco.DICT_ARUCO_ORIGINAL)
-        parameters =  cv.aruco.DetectorParameters()
-        detector = cv.aruco.ArucoDetector(dictionary, parameters)
-        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        _,thresh_image = cv.threshold(gray,95,255,cv.THRESH_TOZERO)
-
-        (corners, ids, rejected) = detector.detectMarkers(thresh_image)
-        cv.aruco.drawDetectedMarkers(frame, corners, ids, borderColor=(255, 0, 0))
-
-        # cv.imshow("markers", frame)
-        if window:
-            window.set_frame(frame)
-
-        if ids is None:
-            logger.error("No markers detected")
-            return False
-        if len(ids)<8:
-            logger.error("Less than 8 markers detected")
-            return False
-        if len(ids)>8:
-            logger.error("More than 8 markers detected")
-            return False
-        for id in ids:
-            if id[0]>7:
-                logger.error("Non valid marker ID detected")
-                return False
-            if counted[id[0]]==1:
-                logger.error("Multiple markers with the same ID detected")
-                return False
-            counted[id[0]]=1
-
-        self.trackers_pos = []
-        self.points = []
-
-        
-        for i in range(len(ids)):
-            corner=corners[i]
-            mask=self.get_marker_mask(corner, frame)
-            depth=self.get_depth(mask, depth_image)
-            x = int((corner[0][0][0] + corner[0][1][0] + corner[0][2][0] + corner[0][3][0]) / 4)
-            y = int((corner[0][0][1] + corner[0][1][1] + corner[0][2][1] + corner[0][3][1]) / 4)
-            self.points.append((x, y))
-            self.trackers_pos.append(pixels_to_mm(depth, x, y, self.intr))
-
-        for p in self.trackers_pos:
-            if p[2]<5:
-                logger.error("At least one depth is not known")
-                return False
-
-        # Write the information in a CSV file for the next calibration processes
-        points_2d = [(int(self.points[i][0]), int(self.points[i][1]), self.trackers_pos[i][2], ids[i][0]) for i in range(len(self.trackers_pos))]
-        with open(CALIBRATION_FILENAME, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['X', 'Y', 'Depth', 'id'])  # En-tête
-            writer.writerows(points_2d)
-            logger.debug(f"Calibration data written to {CALIBRATION_FILENAME}: {points_2d}")
-
-        return True
     
-    def calibrate_single_marker(self, frame, depth_image, aggregate, window=None)-> bool:
+    
+    def calibrate(self, frame, depth_image, aggregate, window=None)-> bool:
         """
         Calibrate the camera by detecting a single marker and calculating the rotation matrix and translation vector.
         This method averages the corners positions of the marker and stores them in a CSV file.
@@ -329,7 +232,7 @@ class PositionEstimation:
         if len(ids)>1:
             logger.error("More than one marker detected")
             return False
-        if ids[0] != 672:
+        if ids[0] != 672: # ID of the Aruco marker provided with Emio
             logger.error(f"Marker ID is not 672: {ids}")
             return False
         
@@ -349,7 +252,7 @@ class PositionEstimation:
                 return False
 
             temp_points[i] = [corner[0], corner[1]]
-            temp_trackers_pos[i] = pixels_to_mm(depth, corner[0], corner[1], self.intr)
+            temp_trackers_pos[i] = image_pixel_to_mm(depth, corner[0], corner[1], self.intr)
         
         # Add the the middle points between the corners
         for i in range(4):
@@ -383,7 +286,7 @@ class PositionEstimation:
                 logger.debug(f"Skipping frame: Depth value is 0 for corner {i} at position ({corner[0]}, {corner[1]})")
                 return False
         temp_points[-1] = [x, y]
-        temp_trackers_pos[-1] = pixels_to_mm(depth, x, y, self.intr)
+        temp_trackers_pos[-1] = image_pixel_to_mm(depth, x, y, self.intr)
 
 
         # If the calibration is not aggregated, reset the points and trackers_pos lists, else add the new points and trackers_pos to the existing lists
@@ -419,7 +322,7 @@ class PositionEstimation:
         return True
 
     
-    def image_to_3D(self, x: int, y: int, depth: float) -> list[float]:
+    def camera_image_to_simulation(self, x: int, y: int, depth: float) -> list[float]:
         """
         Calculate the position of the object in our frame space
 
@@ -435,7 +338,7 @@ class PositionEstimation:
                 The real world coordinates of the object in the Emio frame space
         """
         position=np.zeros((3))
-        p = pixels_to_mm(depth, x, y, self.intr)
+        p = image_pixel_to_mm(depth, x, y, self.intr)
         position= self.R@p+self.t
         return [position[0], position[1], position[2]]
 
