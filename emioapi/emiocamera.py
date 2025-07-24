@@ -91,7 +91,30 @@ class EmioCamera:
     #  PROPERTIES
     ##########################
 
+#region properties
 
+
+    @property
+    def depth_frame(self):
+        """
+        Get the latest depth frame
+        Returns:
+            numpy.ndarray: the latest depth frame
+        """
+        if self.is_running:
+            return self.depth_frame        
+        return None
+    
+    @property
+    def frame(self):
+        """
+        Get the latest color frame
+        Returns:
+            numpy.ndarray: the latest color frame
+        """
+        if self.is_running:
+            return self.frame
+        return None
 
     @property
     def is_running(self) -> bool:
@@ -271,12 +294,13 @@ class EmioCamera:
         """
         return self._camera.calibration_status if self._camera  else -1
             
+#endregion
 
 
     ##########################
     #  METHODS
     ##########################
-
+#region Methods
 
     @staticmethod
     def listCameras() -> list:
@@ -336,6 +360,24 @@ class EmioCamera:
             self._camera.calibrate()
 
 
+    def image_to_simulation(self, x: int, y: int, depth: int = None) -> list[float]:
+        """
+        Get the 3D point in the simulation reference frame from the pixels and depth
+
+        Args:
+            x, y: int: the horizontal and vertical position in the image/frame
+
+        Returns:
+            a list of float of the corresponding 3D point in the simulation reference frame
+        """
+        if self.is_running:
+            if depth is None:
+                depth = self._camera.depth_frame
+            return self._camera.position_estimator.camera_image_to_simulation(x, y, depth[y][x])
+        
+        return None
+
+
     def update(self):
         """
             Update the camera frames and tracking elements (markers and point cloud)
@@ -361,3 +403,4 @@ class EmioCamera:
         self._running = False
         if self._camera is not None: 
             self._camera.close()
+#endregion
