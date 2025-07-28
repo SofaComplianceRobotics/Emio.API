@@ -33,6 +33,20 @@ def compute_contour_center(contour):
     return cX, cY
 
 
+def compute_median_depth(contour, depth_image):
+    x,y,w,h = cv.boundingRect(contour)
+    x1 = max(0, int(x - w / 2))
+    y1 = max(0, int(y - h / 2))
+    x2 = min(depth_image.shape[1], int(x + w / 2))
+    y2 = min(depth_image.shape[0], int(y + h / 2))
+    depth_values = depth_image[y1:y2, x1:x2].flatten()
+    valid_depth_values = depth_values[depth_values > 0]
+    if len(valid_depth_values) > 0:
+        return np.median(valid_depth_values)
+    else:
+        return 0
+
+
 def listCameras() -> list:
     context = rs.context()
     return [d.get_info(rs.camera_info.serial_number) for d in context.devices]
@@ -75,7 +89,13 @@ class DepthCamera:
         return self.device.get_info(rs.camera_info.serial_number)
 
 
-    def __init__(self, camera_serial: str=None, parameter: dict=None, compute_point_cloud: bool=False, show_video_feed: bool=False, tracking: bool=True) -> None:
+    def __init__(self, 
+                 camera_serial: str=None, 
+                 parameter: dict=None, 
+                 compute_point_cloud: bool=False, 
+                 show_video_feed: bool=False, 
+                 tracking: bool=True,
+                 configuration: str="extended") -> None:
         """
         Initialize the camera and the parameters.
 
@@ -88,6 +108,8 @@ class DepthCamera:
                 If True, the video feed will be shown.
             track: bool
                 If True, the tracking will be enabled.
+            configuration: str
+                Configuration of Emio, either "extended" (default) or "compact"
         """
         self.tracking = tracking
         self.show_video_feed = show_video_feed
@@ -122,7 +144,7 @@ class DepthCamera:
         default_param = self.parameter.copy()
 
         # Initialize the position estimation by reading the calibration file
-        self.position_estimator = PositionEstimation(self.intr)
+        self.position_estimator = PositionEstimation(self.intr, configuration)
         self.position_estimator.intr= self.intr
         _, color_image, depth_image, _ = self.get_frame()
         self.position_estimator.compute_camera_to_simulation_transform()
@@ -221,6 +243,7 @@ class DepthCamera:
 
         if success:
             self.position_estimator.compute_camera_to_simulation_transform()
+            logger.info(f"Camera {self.camera_serial} successfully calibrated.")
 
         # Close the calibration window
         calibration_window.closed()

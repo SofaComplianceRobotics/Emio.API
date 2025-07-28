@@ -89,9 +89,13 @@ def image_pixel_to_mm(depth: float, pixel_x: int, pixel_y: int, camera_intrinsic
 class PositionEstimation:
     """
     This class is used to calculate the real world coordinates based on the pixel coordinates and the depth
+
+    Params:
+        configuration: str: Configuration of Emio, either "extended" (default) or "compact"
     """
 
-    def __init__(self, cameraintrinsinc) -> None:
+    def __init__(self, cameraintrinsinc, configuration: str="extented") -> None:
+        self.configuration = configuration
         self.calibration_points=np.zeros((COUNT_POINTS, 3))
         self.R=np.zeros((9,3))
         self.t=np.zeros((3))
@@ -227,13 +231,13 @@ class PositionEstimation:
         (corners, ids, rejected) = detector.detectMarkers(thresh_image)
 
         if ids is None:
-            logger.error("No markers detected")
+            logger.error(f"Frame {self.count_calibration_frames}: No Aruco markers detected")
             return False
         if len(ids)>1:
-            logger.error("More than one marker detected")
+            logger.error(f"Frame {self.count_calibration_frames}: More than one Aruco marker detected")
             return False
         if ids[0] != 672: # ID of the Aruco marker provided with Emio
-            logger.error(f"Marker ID is not 672: {ids}")
+            logger.error(f"Frame {self.count_calibration_frames}: Aruco marker ID is not 672: {ids}")
             return False
         
         if not aggregate:
@@ -339,7 +343,15 @@ class PositionEstimation:
         """
         position=np.zeros((3))
         p = image_pixel_to_mm(depth, x, y, self.intr)
-        position= self.R@p+self.t
+        position = self.R@p 
+        if self.configuration == "compact": # For the moment, the calibration is always performed in extended mode. 
+            # When in compact mode, apply a rotation to the camera
+            # TODO: find a way to calibrate the camera when in compact configuration 
+            R = np.array([  [0.5000000,  -0.7071068, -0.5000000],
+                            [0.7071068,  0.0000000, 0.7071068],
+                            [-0.5000000,  -0.7071068,  0.5000000] ])
+            position = R@position 
+        position += self.t
         return [position[0], position[1], position[2]]
 
 
