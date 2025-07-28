@@ -62,6 +62,8 @@ class DepthCamera:
     rootWindow = None
     hsvFrame = None
     maskFrame = None
+    frame: np.ndarray = None
+    depth_frame: np.ndarray = None
     calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
 
     @property
@@ -245,13 +247,13 @@ class DepthCamera:
     
 
     def update(self):
-        ret, frame, depth_image, depth_frame = self.get_frame()
+        ret, self.frame, self.depth_frame, depth_rsframe = self.get_frame()
 
         if ret is False:
             return
         # if frame is read correctly ret is True
 
-        self.hsvFrame = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
 
         # color definition
         red_lower = np.array(
@@ -261,7 +263,7 @@ class DepthCamera:
 
         # red color mask (sort of thresholding, actually segmentation)
         mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
-        mask2 = cv.inRange(depth_image, 2, 430)
+        mask2 = cv.inRange(self.depth_frame, 2, 430)
 
         mask = cv.bitwise_and(mask, mask2, mask=mask)
 
@@ -273,7 +275,7 @@ class DepthCamera:
         mask = cv.erode(mask, element, iterations=3)
         mask = cv.dilate(mask, element, iterations=3)
 
-        self.maskFrame = cv.bitwise_and(frame, frame, mask=mask)
+        self.maskFrame = cv.bitwise_and(self.frame, self.frame, mask=mask)
 
         if self.tracking:
             contours, _ = cv.findContours(
@@ -286,11 +288,11 @@ class DepthCamera:
                     if a > self.parameter['area']:
                         x, y = compute_contour_center(contours[i])
                         marker_mask = np.zeros_like(mask)
-                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth_image[y, x])
+                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, self.depth_frame[y, x])
                         self.trackers_pos.append([worldx, worldy, worldz])
                         cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                         cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
-                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth_image[y, x]})", (x, y), 
+                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {self.depth_frame[y, x]})", (x, y), 
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
@@ -299,7 +301,7 @@ class DepthCamera:
                             cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                
 
         if self.compute_point_cloud:
-            points = self.pc.calculate(depth_frame)
+            points = self.pc.calculate(depth_rsframe)
             v = points.get_vertices()
             self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
