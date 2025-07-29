@@ -110,7 +110,7 @@ class EmioCamera:
             numpy.ndarray: the latest depth frame
         """
         if self.is_running:
-            return self.depth_frame        
+            return self._camera.depth_frame        
         return None
     
     @property
@@ -121,7 +121,7 @@ class EmioCamera:
             numpy.ndarray: the latest color frame
         """
         if self.is_running:
-            return self.frame
+            return self._camera.hsvFrame
         return None
 
     @property
@@ -370,7 +370,7 @@ class EmioCamera:
             self._camera.calibrate()
 
 
-    def image_to_simulation(self, x: int, y: int, depth: int = None) -> list[float]:
+    def image_to_simulation(self, x: int, y: int, depth: float = None) -> tuple:
         """
         Get the 3D point in the simulation reference frame from the pixels and depth
 
@@ -382,10 +382,10 @@ class EmioCamera:
         """
         if self.is_running:
             if depth is None:
-                depth = self._camera.depth_frame
-            return self._camera.position_estimator.camera_image_to_simulation(x, y, depth[y][x])
+                depth = self._camera.depth_frame[y][x]
+            return True, self._camera.position_estimator.camera_image_to_simulation(x, y, depth)
         
-        return None
+        return False, None
 
 
     def update(self):
