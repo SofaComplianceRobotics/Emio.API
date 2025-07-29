@@ -250,7 +250,7 @@ class PositionEstimation:
         temp_trackers_pos = np.zeros((COUNT_POINTS, 3))
         for i in range(len(corners[0][0])):
             corner=corners[0][0][i]
-            depth= depth_image[int(corner[1])][int(corner[0])]
+            depth = depth_image[int(corner[1])][int(corner[0])]
             if depth == 0:
                 logger.debug(f"Skipping frame: Depth value is 0 for corner {i} at position ({corner[0]}, {corner[1]})")
                 return False

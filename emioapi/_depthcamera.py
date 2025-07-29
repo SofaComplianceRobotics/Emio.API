@@ -33,13 +33,12 @@ def compute_contour_center(contour):
     return cX, cY
 
 
-def compute_median_depth(contour, depth_image):
-    x,y,w,h = cv.boundingRect(contour)
-    x1 = max(0, int(x - w / 2))
-    y1 = max(0, int(y - h / 2))
-    x2 = min(depth_image.shape[1], int(x + w / 2))
-    y2 = min(depth_image.shape[0], int(y + h / 2))
-    depth_values = depth_image[y1:y2, x1:x2].flatten()
+def compute_median_depth(contour, color_image, depth_image):
+    image = np.zeros_like(color_image)
+    # Fills the area bounded by the contours if thickness < 0
+    cv.drawContours(image, contours=[contour], contourIdx=0, color=255, thickness=-1)
+    points = np.where(image == 255)
+    depth_values = [depth_image[p[1], p[0]] for p in points].flatten()
     valid_depth_values = depth_values[depth_values > 0]
     if len(valid_depth_values) > 0:
         return np.median(valid_depth_values)
@@ -279,10 +278,8 @@ class DepthCamera:
         self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
 
         # color definition
-        red_lower = np.array(
-            [self.parameter['hue_l'], self.parameter['sat_l'], self.parameter['value_l']])
-        red_upper = np.array(
-            [self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
+        red_lower = np.array([self.parameter['hue_l'], self.parameter['sat_l'], self.parameter['value_l']])
+        red_upper = np.array([self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
 
         # red color mask (sort of thresholding, actually segmentation)
         mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
@@ -301,8 +298,7 @@ class DepthCamera:
         self.maskFrame = cv.bitwise_and(self.frame, self.frame, mask=mask)
 
         if self.tracking:
-            contours, _ = cv.findContours(
-                mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
             if len(contours) != 0:
                 areas = [cv.contourArea(cnt) for cnt in contours]
 
@@ -311,11 +307,13 @@ class DepthCamera:
                     if a > self.parameter['area']:
                         x, y = compute_contour_center(contours[i])
                         marker_mask = np.zeros_like(mask)
-                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, self.depth_frame[y, x])
+
+                        depth = compute_median_depth(contours[i], self.hsvFrame, self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
+                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
                         cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                         cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
-                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {self.depth_frame[y, x]})", (x, y), 
+                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth})", (x, y), 
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
