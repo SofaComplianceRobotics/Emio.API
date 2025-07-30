@@ -370,7 +370,7 @@ class EmioCamera:
             self._camera.calibrate()
 
 
-    def image_to_simulation(self, x: int, y: int, depth: float = None) -> tuple:
+    def image_to_simulation(self, x: int, y: int, depth: float = None) -> list[float]:
         """
         Get the 3D point in the simulation reference frame from the pixels and depth
 
@@ -383,9 +383,9 @@ class EmioCamera:
         if self.is_running:
             if depth is None:
                 depth = self._camera.depth_frame[y][x]
-            return True, self._camera.position_estimator.camera_image_to_simulation(x, y, depth)
+            return self._camera.position_estimator.camera_image_to_simulation(x, y, depth)
         
-        return False, None
+        return None
 
 
     def update(self):
