@@ -121,7 +121,7 @@ class EmioCamera:
             numpy.ndarray: the latest color frame
         """
         if self.is_running:
-            return self._camera.hsvFrame
+            return self._camera.frame
         return None
 
     @property
