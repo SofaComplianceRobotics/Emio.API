@@ -71,7 +71,7 @@ class DepthCamera:
     tracking = True
     trackers_pos = []
     maskWindow = None
-    hsvWindow = None
+    frameWindow = None
     rootWindow = None
     hsvFrame = None
     maskFrame = None
@@ -184,12 +184,12 @@ class DepthCamera:
             self.maskWindow = CameraFeedWindow(rootWindow=self.rootWindow, trackbarParams=self.parameter, name='Mask')
 
     def createHSVWindow(self):
-        if self.hsvWindow is None or not self.hsvWindow.running:
-            self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
+        if self.frameWindow is None or not self.frameWindow.running:
+            self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
     
     def quit(self):
         self.maskWindow.closed()
-        self.hsvWindow.closed()
+        self.frameWindow.closed()
         self.rootWindow.destroy()
         self.show_video_feed = False
         self.rootWindow = None
@@ -319,7 +319,7 @@ class DepthCamera:
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         
                         if self.show_video_feed:
-                            cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                
+                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)                
 
         if self.compute_point_cloud:
             points = self.pc.calculate(depth_rsframe)
@@ -334,8 +334,8 @@ class DepthCamera:
                 self.maskWindow.set_frame(self.maskFrame)
             # image = ImageTk.PhotoImage(image=Image.fromarray(cv.cvtColor(hsv, cv.COLOR_BGR2RGB)))
 
-            if self.hsvWindow.running:
-                self.hsvWindow.set_frame(self.hsvFrame)
+            if self.frameWindow.running:
+                self.frameWindow.set_frame(self.frame)
 
             self.rootWindow.update()
 
