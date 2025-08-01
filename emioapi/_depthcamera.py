@@ -171,10 +171,10 @@ class DepthCamera:
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
         ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="HSV Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
 
         self.createMaskWindow()
-        self.createHSVWindow()
+        self.createFrameWindow()
 
         self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
         self.rootWindow.update_idletasks()
@@ -183,7 +183,7 @@ class DepthCamera:
         if self.maskWindow is None or not self.maskWindow.running:
             self.maskWindow = CameraFeedWindow(rootWindow=self.rootWindow, trackbarParams=self.parameter, name='Mask')
 
-    def createHSVWindow(self):
+    def createFrameWindow(self):
         if self.frameWindow is None or not self.frameWindow.running:
             self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
     
