@@ -2,7 +2,7 @@ import logging
 # based on https://docs.python.org/3/howto/logging-cookbook.html
 
 logger = logging.getLogger('emioapi_logger')
-logger.setLevel(logging.DEBUG)  # Log everything (DEBUG level or higher)
+logger.setLevel(logging.INFO)  # Log everything (DEBUG level or higher)
 
 # Prevent multiple handlers if the logger is configured multiple times
 # if not logger.handlers:
