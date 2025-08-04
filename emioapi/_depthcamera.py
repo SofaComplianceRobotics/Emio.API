@@ -33,6 +33,19 @@ def compute_contour_center(contour):
     return cX, cY
 
 
+def compute_median_depth(contour, color_image, depth_image):
+    image = np.zeros_like(color_image)
+    # Fills the area bounded by the contours if thickness < 0
+    cv.drawContours(image, contours=[contour], contourIdx=0, color=255, thickness=-1)
+    points = np.where(image == 255)
+    depth_values = np.array([depth_image[p[0], p[1]] for p in points]).flatten()
+    valid_depth_values = depth_values[depth_values > 0]
+    if len(valid_depth_values) > 0:
+        return np.median(valid_depth_values)
+    else:
+        return 0
+
+
 def listCameras() -> list:
     context = rs.context()
     return [d.get_info(rs.camera_info.serial_number) for d in context.devices]
@@ -58,7 +71,7 @@ class DepthCamera:
     tracking = True
     trackers_pos = []
     maskWindow = None
-    hsvWindow = None
+    frameWindow = None
     rootWindow = None
     hsvFrame = None
     maskFrame = None
@@ -75,7 +88,13 @@ class DepthCamera:
         return self.device.get_info(rs.camera_info.serial_number)
 
 
-    def __init__(self, camera_serial: str=None, parameter: dict=None, compute_point_cloud: bool=False, show_video_feed: bool=False, tracking: bool=True) -> None:
+    def __init__(self, 
+                 camera_serial: str=None, 
+                 parameter: dict=None, 
+                 compute_point_cloud: bool=False, 
+                 show_video_feed: bool=False, 
+                 tracking: bool=True,
+                 configuration: str="extended") -> None:
         """
         Initialize the camera and the parameters.
 
@@ -88,6 +107,8 @@ class DepthCamera:
                 If True, the video feed will be shown.
             track: bool
                 If True, the tracking will be enabled.
+            configuration: str
+                Configuration of Emio, either "extended" (default) or "compact"
         """
         self.tracking = tracking
         self.show_video_feed = show_video_feed
@@ -122,7 +143,7 @@ class DepthCamera:
         default_param = self.parameter.copy()
 
         # Initialize the position estimation by reading the calibration file
-        self.position_estimator = PositionEstimation(self.intr)
+        self.position_estimator = PositionEstimation(self.intr, configuration)
         self.position_estimator.intr= self.intr
         _, color_image, depth_image, _ = self.get_frame()
         self.position_estimator.compute_camera_to_simulation_transform()
@@ -150,10 +171,10 @@ class DepthCamera:
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
         ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="HSV Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
 
         self.createMaskWindow()
-        self.createHSVWindow()
+        self.createFrameWindow()
 
         self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
         self.rootWindow.update_idletasks()
@@ -162,13 +183,13 @@ class DepthCamera:
         if self.maskWindow is None or not self.maskWindow.running:
             self.maskWindow = CameraFeedWindow(rootWindow=self.rootWindow, trackbarParams=self.parameter, name='Mask')
 
-    def createHSVWindow(self):
-        if self.hsvWindow is None or not self.hsvWindow.running:
-            self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
+    def createFrameWindow(self):
+        if self.frameWindow is None or not self.frameWindow.running:
+            self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
     
     def quit(self):
         self.maskWindow.closed()
-        self.hsvWindow.closed()
+        self.frameWindow.closed()
         self.rootWindow.destroy()
         self.show_video_feed = False
         self.rootWindow = None
@@ -221,6 +242,7 @@ class DepthCamera:
 
         if success:
             self.position_estimator.compute_camera_to_simulation_transform()
+            logger.info(f"Camera {self.camera_serial} successfully calibrated.")
 
         # Close the calibration window
         calibration_window.closed()
@@ -256,10 +278,8 @@ class DepthCamera:
         self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
 
         # color definition
-        red_lower = np.array(
-            [self.parameter['hue_l'], self.parameter['sat_l'], self.parameter['value_l']])
-        red_upper = np.array(
-            [self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
+        red_lower = np.array([self.parameter['hue_l'], self.parameter['sat_l'], self.parameter['value_l']])
+        red_upper = np.array([self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
 
         # red color mask (sort of thresholding, actually segmentation)
         mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
@@ -278,8 +298,7 @@ class DepthCamera:
         self.maskFrame = cv.bitwise_and(self.frame, self.frame, mask=mask)
 
         if self.tracking:
-            contours, _ = cv.findContours(
-                mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
             if len(contours) != 0:
                 areas = [cv.contourArea(cnt) for cnt in contours]
 
@@ -288,17 +307,19 @@ class DepthCamera:
                     if a > self.parameter['area']:
                         x, y = compute_contour_center(contours[i])
                         marker_mask = np.zeros_like(mask)
-                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, self.depth_frame[y, x])
+
+                        depth = compute_median_depth(contours[i], self.hsvFrame, self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
+                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
                         cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                         cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
-                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {self.depth_frame[y, x]})", (x, y), 
+                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth})", (x, y), 
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
                             cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         
                         if self.show_video_feed:
-                            cv.drawContours(self.hsvFrame, contours[i], -1, (255, 255, 0), 3)                
+                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)                
 
         if self.compute_point_cloud:
             points = self.pc.calculate(depth_rsframe)
@@ -313,8 +334,8 @@ class DepthCamera:
                 self.maskWindow.set_frame(self.maskFrame)
             # image = ImageTk.PhotoImage(image=Image.fromarray(cv.cvtColor(hsv, cv.COLOR_BGR2RGB)))
 
-            if self.hsvWindow.running:
-                self.hsvWindow.set_frame(self.hsvFrame)
+            if self.frameWindow.running:
+                self.frameWindow.set_frame(self.frame)
 
             self.rootWindow.update()
 
