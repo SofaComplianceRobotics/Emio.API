@@ -38,7 +38,7 @@ def compute_median_depth(contour, color_image, depth_image):
     # Fills the area bounded by the contours if thickness < 0
     cv.drawContours(image, contours=[contour], contourIdx=0, color=255, thickness=-1)
     points = np.where(image == 255)
-    depth_values = [depth_image[p[1], p[0]] for p in points].flatten()
+    depth_values = np.array([depth_image[p[0], p[1]] for p in points]).flatten()
     valid_depth_values = depth_values[depth_values > 0]
     if len(valid_depth_values) > 0:
         return np.median(valid_depth_values)

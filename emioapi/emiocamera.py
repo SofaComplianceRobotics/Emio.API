@@ -72,7 +72,7 @@ class EmioCamera:
                  camera_serial: str=None, 
                  parameter: dict=None, 
                  show: bool=False, 
-                 track_markers: bool=True, 
+                 track_markers: bool=False, 
                  compute_point_cloud: bool=False,
                  configuration: str="extended"):
         """
