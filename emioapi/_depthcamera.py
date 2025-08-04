@@ -114,7 +114,6 @@ class DepthCamera:
         self.show_video_feed = show_video_feed
         self.compute_point_cloud = compute_point_cloud
 
-
         self.initialized = True
         self.init_realsense(camera_serial)
 
@@ -122,8 +121,6 @@ class DepthCamera:
             return
 
         self.pc = rs.pointcloud()
-
-        
 
         self.trackers_pos = []
 
@@ -157,21 +154,18 @@ class DepthCamera:
         if self.show_video_feed:        
             self.createFeedWindows()
 
-
         self.update() # to get a first frame and trackers
 
 
     def createFeedWindows(self):
         self.rootWindow = tk.Tk()
         self.rootWindow.resizable(False, False)
-        # self.rootWindow.tk.call("source", os.path.abspath("../../parts\controllers/azure_ttk_theme/azure.tcl")) # https://github.com/rdbende/Azure-ttk-theme
-        # self.rootWindow.tk.call("set_theme", "light")
 
         self.rootWindow.title("Camera Feed Manager")
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
         ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="HSV Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Frame Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
 
         self.createMaskWindow()
         self.createFrameWindow()
@@ -233,7 +227,7 @@ class DepthCamera:
         # Create the windows to display the binrary mask and the HSV frame
         calibration_window = CameraFeedWindow(rootWindow=self.rootWindow, name='Calibration')
 
-        while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300: # self.position_estimator.count_calibration_frames < 100 and
+        while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300:
             self.position_estimator.intr= self.intr
             _, color_image, depth_image, _ = self.get_frame()
             success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
@@ -332,7 +326,6 @@ class DepthCamera:
 
             if self.maskWindow.running:
                 self.maskWindow.set_frame(self.maskFrame)
-            # image = ImageTk.PhotoImage(image=Image.fromarray(cv.cvtColor(hsv, cv.COLOR_BGR2RGB)))
 
             if self.frameWindow.running:
                 self.frameWindow.set_frame(self.frame)
