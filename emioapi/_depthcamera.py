@@ -185,7 +185,7 @@ class DepthCamera:
 
     def createFrameWindow(self):
         if self.frameWindow is None or not self.frameWindow.running:
-            self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
+            self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
     
     def quit(self):
         self.maskWindow.closed()
