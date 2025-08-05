@@ -72,6 +72,7 @@ class DepthCamera:
     trackers_pos = []
     maskWindow = None
     frameWindow = None
+    hsvWindow = None
     rootWindow = None
     hsvFrame = None
     maskFrame = None
@@ -166,9 +167,11 @@ class DepthCamera:
         ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
         ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Frame Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
 
         self.createMaskWindow()
         self.createFrameWindow()
+        self.createHSVWindow()
 
         self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
         self.rootWindow.update_idletasks()
@@ -181,9 +184,14 @@ class DepthCamera:
         if self.frameWindow is None or not self.frameWindow.running:
             self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
     
+    def createHSVWindow(self):
+        if self.hsvWindow is None or not self.hsvWindow.running:
+            self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
+    
     def quit(self):
         self.maskWindow.closed()
         self.frameWindow.closed()
+        self.hsvWindow.closed()
         self.rootWindow.destroy()
         self.show_video_feed = False
         self.rootWindow = None
@@ -305,12 +313,12 @@ class DepthCamera:
                         depth = compute_median_depth(contours[i], self.hsvFrame, self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
                         worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
+
                         cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
-                        cv.circle(self.hsvFrame, (x, y), 2, color=255, thickness=-1)
-                        cv.putText(self.hsvFrame, f"{i} ({x}, {y}, {depth})", (x, y), 
-                            cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                        cv.putText(self.hsvFrame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), 
-                            cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                        for frame in [self.hsvFrame, self.frame]:
+                            cv.circle(frame, (x, y), 2, color=255, thickness=-1)
+                            cv.putText(frame, f"{i} ({x}, {y}, {depth})", (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                            cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                         
                         if self.show_video_feed:
                             cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)                
@@ -329,6 +337,9 @@ class DepthCamera:
 
             if self.frameWindow.running:
                 self.frameWindow.set_frame(self.frame)
+
+            if self.hsvWindow.running:
+                self.hsvWindow.set_frame(self.hsvFrame)
 
             self.rootWindow.update()
 

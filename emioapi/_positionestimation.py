@@ -318,7 +318,7 @@ class PositionEstimation:
                         (int(corners[0][0][i][0]), int(corners[0][0][i][1])), 
                         cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1) for i in range(len(corners[0][0]))]
         frame = cv.putText(frame, f"Calibration progress: {self.count_calibration_frames}/200", (10, 30), 
-                            cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                            cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
         if window:
             window.set_frame(frame)
