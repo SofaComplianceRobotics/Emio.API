@@ -314,8 +314,8 @@ class DepthCamera:
                         worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
 
+                        cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                         for frame in [self.hsvFrame, self.frame]:
-                            cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                             cv.circle(frame, (x, y), 2, color=255, thickness=-1)
                             cv.putText(frame, f"{i} ({x}, {y}, {depth})", (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                             cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
