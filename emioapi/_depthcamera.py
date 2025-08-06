@@ -46,7 +46,7 @@ def compute_median_depth(contour, color_image, depth_image):
         return 0
 
 
-def listCameras() -> list:
+def list_cameras() -> list:
     context = rs.context()
     return [d.get_info(rs.camera_info.serial_number) for d in context.devices]
 
@@ -58,9 +58,10 @@ class DepthCamera:
     device = None
     pipeline_profile = None
     pipeline_wrapper = None
-    config = None
+    rsconfig = None
     pipeline = None
     point_cloud = None
+    fps = 60
     intr = None
     profile = None
     initialized = False
@@ -86,7 +87,7 @@ class DepthCamera:
         Returns the serial of the camera as str
         
         """
-        return self.device.get_info(rs.camera_info.serial_number)
+        return self.device.get_info(rs.camera_info.serial_number) if self.device else None
 
 
     def __init__(self, 
@@ -114,14 +115,12 @@ class DepthCamera:
         self.tracking = tracking
         self.show_video_feed = show_video_feed
         self.compute_point_cloud = compute_point_cloud
+        self.configuration = configuration
 
         self.initialized = True
-        self.init_realsense(camera_serial)
 
         if not self.initialized:
             return
-
-        self.pc = rs.pointcloud()
 
         self.trackers_pos = []
 
@@ -139,52 +138,48 @@ class DepthCamera:
                 self.parameter.update(DEFAULT_CAMERA_PARAMS)
         
         default_param = self.parameter.copy()
-
-        # Initialize the position estimation by reading the calibration file
-        self.position_estimator = PositionEstimation(self.intr, configuration)
-        self.position_estimator.intr= self.intr
-        _, color_image, depth_image, _ = self.get_frame()
-        self.position_estimator.compute_camera_to_simulation_transform()
-
-        if not self.position_estimator.initialized:
-            logger.error('Position estimation initialization failed. Using default parameters.')
-            raise Exception('Position estimation initialization failed. Please check the camera calibration.')
         
         self.initialized = True
 
         if self.show_video_feed:        
-            self.createFeedWindows()
+            self.create_feed_windows()
 
-        self.update() # to get a first frame and trackers
+        # self.update() # to get a first frame and trackers
+
+    def set_fps(self, new_fps: int):
+        if new_fps in [30, 60, 90]:
+            self.fps = new_fps
+        else:
+            raise ValueError("fps can only be 30, 60 or 90")
 
 
-    def createFeedWindows(self):
+    def create_feed_windows(self):
         self.rootWindow = tk.Tk()
         self.rootWindow.resizable(False, False)
 
         self.rootWindow.title("Camera Feed Manager")
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
-        ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Frame Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Mask Window", command=self.create_mask_window).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Frame Window", command=self.create_frame_window).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="HSV Window", command=self.create_HSV_window).pack(side=tk.BOTTOM, padx=5, pady=5)
 
-        self.createMaskWindow()
-        self.createFrameWindow()
-        self.createHSVWindow()
+        self.create_mask_window()
+        self.create_frame_window()
+        self.create_HSV_window()
 
         self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
         self.rootWindow.update_idletasks()
 
-    def createMaskWindow(self):
+    def create_mask_window(self):
         if self.maskWindow is None or not self.maskWindow.running:
             self.maskWindow = CameraFeedWindow(rootWindow=self.rootWindow, trackbarParams=self.parameter, name='Mask')
 
-    def createFrameWindow(self):
+    def create_frame_window(self):
         if self.frameWindow is None or not self.frameWindow.running:
             self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
     
-    def createHSVWindow(self):
+    def create_HSV_window(self):
         if self.hsvWindow is None or not self.hsvWindow.running:
             self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
     
@@ -196,34 +191,47 @@ class DepthCamera:
         self.show_video_feed = False
         self.rootWindow = None
 
-    def init_realsense(self, camera_serial: str=None):
+    def init_realsense(self):
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
-        self.config = rs.config()
+        self.rsconfig = rs.config()
+        self.pc = rs.pointcloud()
 
-        if  camera_serial is not None:
-            self.config.enable_device(camera_serial)
+        if  self.camera_serial is not None:
+            self.rsconfig.enable_device(self.camera_serial)
 
         # Get device product line for setting a supporting resolution
         self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
-        try:
-            self.pipeline_profile = self.config.resolve(self.pipeline_wrapper)
-        except Exception as err:
-            self.initialized = False
-            raise Exception('DepthCamera', str(err))
+        self.pipeline_profile = self.rsconfig.resolve(self.pipeline_wrapper)
 
         self.device = self.pipeline_profile.get_device()
 
-        self.config.enable_stream(rs.stream.depth, self.width, self.height, rs.format.z16, 30)
-        self.config.enable_stream(rs.stream.color, self.width, self.height, rs.format.bgr8, 30)
+        self.rsconfig.enable_stream(rs.stream.depth, self.width, self.height, rs.format.z16, self.fps)
+        self.rsconfig.enable_stream(rs.stream.color, self.width, self.height, rs.format.bgr8, self.fps)
 
         depth_sensor = self.device.first_depth_sensor()
         depth_sensor.set_option(rs.option.depth_units, 0.001)
 
-        cfg = self.pipeline.start(self.config)
-
+        cfg = self.pipeline.start(self.rsconfig)
+        
         self.profile = cfg.get_stream(rs.stream.depth)
         self.intr = self.profile.as_video_stream_profile().get_intrinsics()
+
+        # Initialize the position estimation by reading the calibration file
+        self.position_estimator = PositionEstimation(self.intr, self.configuration)
+        self.position_estimator.intr= self.intr
+        self.position_estimator.compute_camera_to_simulation_transform()
+
+        if not self.position_estimator.initialized:
+            logger.error('Position estimation initialization failed. Using default parameters.')
+            raise Exception('Position estimation initialization failed. Please check the camera calibration.')
+
+    def open(self):
+        try:            
+            self.init_realsense()
+        except Exception as err:
+            self.initialized = False
+            raise Exception('Could not open depthcamera', str(err))
 
 
     def calibrate(self):
@@ -330,7 +338,7 @@ class DepthCamera:
 
         if self.show_video_feed:
             if self.rootWindow is None:
-                self.createFeedWindows()
+                self.create_feed_windows()
 
             if self.maskWindow.running:
                 self.maskWindow.set_frame(self.maskFrame)
@@ -345,11 +353,14 @@ class DepthCamera:
 
 
     def close(self):
-        if self.pipeline:
-            self.pipeline.stop()
-        if self.rootWindow:
-            self.rootWindow.destroy()
-        self.initialized = False
+        try:
+            self.initialized = False
+            if self.pipeline:
+                self.pipeline.stop()
+            if self.rootWindow:
+                self.rootWindow.destroy()
+        except:
+            pass
 
 
     def run_loop(self):
