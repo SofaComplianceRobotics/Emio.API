@@ -12,7 +12,7 @@ from emioapi._logging_config import logger
 
 def main(emio: EmioCamera):
 
-    emio.calibrate()  # calibrate the camera if needed
+    # emio.calibrate()  # calibrate the camera if needed
 
     while emio.is_running:
         try:
@@ -47,6 +47,7 @@ if __name__ == "__main__":
         logger.info("Opening and configuring EMIO Camera...")
 
         emio = EmioCamera(show=True, track_markers=True, compute_point_cloud=True)
+        emio.fps = 30 # sets the fps to 30. Default is 60 and can only be one of 30. 60 or 90fps
         
         if emio.open(): # This will open the first available Realsense camera
             

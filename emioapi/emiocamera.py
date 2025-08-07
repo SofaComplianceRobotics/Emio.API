@@ -93,6 +93,13 @@ class EmioCamera:
         if parameter is not None:
             self._parameter = parameter
 
+        self._camera = DepthCamera(camera_serial=self.camera_serial, 
+                                       parameter=self._parameter, 
+                                       compute_point_cloud=self._compute_point_cloud, 
+                                       show_video_feed=self._show, 
+                                       tracking=self._tracking,
+                                       configuration=self.configuration)
+
 
 
     ##########################
@@ -301,6 +308,29 @@ class EmioCamera:
             int: The calibration status of the camera. -1 if camera is None
         """
         return self._camera.calibration_status if self._camera  else -1
+    
+    @property
+    def fps(self) -> int:
+        """
+        Get the current stream framerate of the camera in frames per second.
+        Default is 60 fps.
+
+        You have to set the fps _before_ calling the `open` method.
+
+        Returns:
+            int: The framerate in fps
+        """
+        return self._camera.fps
+    
+    @fps.setter
+    def fps(self, value: int):
+        """
+        Set the camera framerate.
+        Available framerates are 30, 60 and 90 fps.
+        Default is 60 fps. 
+        """
+        self._camera.set_fps(value)
+
             
 #endregion
 
@@ -318,7 +348,7 @@ class EmioCamera:
         Returns:
             list: A list of the serial numbers as string.
         """
-        return listCameras()
+        return list_cameras()
     
 
     def open(self, camera_serial: str=None) -> bool:
@@ -343,12 +373,7 @@ class EmioCamera:
                 self.camera_serial = camera_serial
 
             logger.debug("Starting camera with show: {}, tracking: {}, compute_point_cloud: {}".format(self._show, self._tracking, self._compute_point_cloud))
-            self._camera = DepthCamera(camera_serial=self.camera_serial, 
-                                       parameter=self._parameter, 
-                                       compute_point_cloud=self._compute_point_cloud, 
-                                       show_video_feed=self._show, 
-                                       tracking=self._tracking,
-                                       configuration=self.configuration)
+            self._camera.open()
             self.camera_serial = self._camera.camera_serial
             self._running = True
             logger.info(f"Camera {self.camera_serial} successfully started.")
