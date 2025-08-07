@@ -33,12 +33,12 @@ def compute_contour_center(contour):
     return cX, cY
 
 
-def compute_median_depth(contour, color_image, depth_image):
-    image = np.zeros_like(color_image)
+def compute_median_depth(contour, depth_image):
+    image = np.zeros_like(depth_image)
     # Fills the area bounded by the contours if thickness < 0
     cv.drawContours(image, contours=[contour], contourIdx=0, color=255, thickness=-1)
     points = np.where(image == 255)
-    depth_values = np.array([depth_image[p[0], p[1]] for p in points]).flatten()
+    depth_values = depth_image[points[0], points[1]].flatten()
     valid_depth_values = depth_values[depth_values > 0]
     if len(valid_depth_values) > 0:
         return np.median(valid_depth_values)
@@ -74,6 +74,7 @@ class DepthCamera:
     maskWindow = None
     frameWindow = None
     hsvWindow = None
+    depthWindow = None
     rootWindow = None
     hsvFrame = None
     maskFrame = None
@@ -160,13 +161,13 @@ class DepthCamera:
         self.rootWindow.title("Camera Feed Manager")
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
-        ttk.Button(self.rootWindow, text="Mask Window", command=self.create_mask_window).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Frame Window", command=self.create_frame_window).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="HSV Window", command=self.create_HSV_window).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Mask Window", command=self.createMaskWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Frame Window", command=self.createFrameWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="HSV Window", command=self.createHSVWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
+        ttk.Button(self.rootWindow, text="Depth Window", command=self.createDepthWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
 
-        self.create_mask_window()
-        self.create_frame_window()
-        self.create_HSV_window()
+        self.createMaskWindow()
+        self.createFrameWindow()
 
         self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
         self.rootWindow.update_idletasks()
@@ -181,12 +182,16 @@ class DepthCamera:
     
     def create_HSV_window(self):
         if self.hsvWindow is None or not self.hsvWindow.running:
-            self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV')
+            self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV Frame')
     
+    def createDepthWindow(self):
+        if self.depthWindow is None or not self.depthWindow.running:
+            self.depthWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='Depth Frame')
+
     def quit(self):
-        self.maskWindow.closed()
-        self.frameWindow.closed()
-        self.hsvWindow.closed()
+        for window in [self.maskWindow, self.frameWindow, self.hsvWindow, self.depthWindow]:
+            if window is not None:
+                window.closed()
         self.rootWindow.destroy()
         self.show_video_feed = False
         self.rootWindow = None
@@ -318,7 +323,7 @@ class DepthCamera:
                         x, y = compute_contour_center(contours[i])
                         marker_mask = np.zeros_like(mask)
 
-                        depth = compute_median_depth(contours[i], self.hsvFrame, self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
+                        depth = compute_median_depth(contours[i], self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
                         worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
 
@@ -340,14 +345,18 @@ class DepthCamera:
             if self.rootWindow is None:
                 self.create_feed_windows()
 
-            if self.maskWindow.running:
+            if self.maskWindow is not None and self.maskWindow.running:
                 self.maskWindow.set_frame(self.maskFrame)
 
-            if self.frameWindow.running:
+            if self.frameWindow is not None and self.frameWindow.running:
                 self.frameWindow.set_frame(self.frame)
 
-            if self.hsvWindow.running:
+            if self.hsvWindow is not None and self.hsvWindow.running:
                 self.hsvWindow.set_frame(self.hsvFrame)
+
+            if self.depthWindow is not None and self.depthWindow.running:
+                colorized = np.asanyarray(rs.colorizer().colorize(depth_rsframe).get_data())
+                self.depthWindow.set_frame(colorized)
 
             self.rootWindow.update()
 
