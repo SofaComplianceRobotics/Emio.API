@@ -38,7 +38,7 @@ def compute_median_depth(contour, depth_image):
     # Fills the area bounded by the contours if thickness < 0
     cv.drawContours(image, contours=[contour], contourIdx=0, color=255, thickness=-1)
     points = np.where(image == 255)
-    depth_values = depth_image[points[0], points[1]].flatten()
+    depth_values = depth_image[points[0], points[1]]
     valid_depth_values = depth_values[depth_values > 0]
     if len(valid_depth_values) > 0:
         return np.median(valid_depth_values)
@@ -86,16 +86,16 @@ class DepthCamera:
     def camera_serial(self) -> str:
         """
         Returns the serial of the camera as str
-        
+
         """
         return self.device.get_info(rs.camera_info.serial_number) if self.device else None
 
 
-    def __init__(self, 
-                 camera_serial: str=None, 
-                 parameter: dict=None, 
-                 compute_point_cloud: bool=False, 
-                 show_video_feed: bool=False, 
+    def __init__(self,
+                 camera_serial: str=None,
+                 parameter: dict=None,
+                 compute_point_cloud: bool=False,
+                 show_video_feed: bool=False,
                  tracking: bool=True,
                  configuration: str="extended") -> None:
         """
@@ -137,12 +137,12 @@ class DepthCamera:
             except FileNotFoundError:
                 logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
                 self.parameter.update(DEFAULT_CAMERA_PARAMS)
-        
+
         default_param = self.parameter.copy()
-        
+
         self.initialized = True
 
-        if self.show_video_feed:        
+        if self.show_video_feed:
             self.create_feed_windows()
 
         # self.update() # to get a first frame and trackers
@@ -160,7 +160,7 @@ class DepthCamera:
 
         self.rootWindow.title("Camera Feed Manager")
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
+        ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Mask Window", command=self.create_mask_window).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Frame Window", command=self.create_frame_window).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="HSV Window", command=self.create_HSV_window).pack(side=tk.BOTTOM, padx=5, pady=5)
@@ -179,11 +179,11 @@ class DepthCamera:
     def create_frame_window(self):
         if self.frameWindow is None or not self.frameWindow.running:
             self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
-    
+
     def create_HSV_window(self):
         if self.hsvWindow is None or not self.hsvWindow.running:
             self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV Frame')
-    
+
     def createDepthWindow(self):
         if self.depthWindow is None or not self.depthWindow.running:
             self.depthWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='Depth Frame')
@@ -218,7 +218,7 @@ class DepthCamera:
         depth_sensor.set_option(rs.option.depth_units, 0.001)
 
         cfg = self.pipeline.start(self.rsconfig)
-        
+
         self.profile = cfg.get_stream(rs.stream.depth)
         self.intr = self.profile.as_video_stream_profile().get_intrinsics()
 
@@ -232,7 +232,7 @@ class DepthCamera:
             raise Exception('Position estimation initialization failed. Please check the camera calibration.')
 
     def open(self):
-        try:            
+        try:
             self.init_realsense()
         except Exception as err:
             self.initialized = False
@@ -281,7 +281,7 @@ class DepthCamera:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
         return True, color_image, depth_image, depth_frame
-    
+
 
     def update(self):
         ret, self.frame, self.depth_frame, depth_rsframe = self.get_frame()
@@ -332,9 +332,9 @@ class DepthCamera:
                             cv.circle(frame, (x, y), 2, color=255, thickness=-1)
                             cv.putText(frame, f"{i} ({x}, {y}, {depth})", (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                             cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                        
+
                         if self.show_video_feed:
-                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)                
+                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)
 
         if self.compute_point_cloud:
             points = self.pc.calculate(depth_rsframe)
