@@ -80,22 +80,24 @@ class DepthCamera:
     maskFrame = None
     frame: np.ndarray = None
     depth_frame: np.ndarray = None
+    depth_max = 430
+    depth_min = 2
     calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
 
     @property
     def camera_serial(self) -> str:
         """
         Returns the serial of the camera as str
-        
+
         """
         return self.device.get_info(rs.camera_info.serial_number) if self.device else None
 
 
-    def __init__(self, 
-                 camera_serial: str=None, 
-                 parameter: dict=None, 
-                 compute_point_cloud: bool=False, 
-                 show_video_feed: bool=False, 
+    def __init__(self,
+                 camera_serial: str=None,
+                 parameter: dict=None,
+                 compute_point_cloud: bool=False,
+                 show_video_feed: bool=False,
                  tracking: bool=True,
                  configuration: str="extended") -> None:
         """
@@ -137,12 +139,12 @@ class DepthCamera:
             except FileNotFoundError:
                 logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
                 self.parameter.update(DEFAULT_CAMERA_PARAMS)
-        
+
         default_param = self.parameter.copy()
-        
+
         self.initialized = True
 
-        if self.show_video_feed:        
+        if self.show_video_feed:
             self.create_feed_windows()
 
         # self.update() # to get a first frame and trackers
@@ -153,6 +155,18 @@ class DepthCamera:
         else:
             raise ValueError("fps can only be 30, 60 or 90")
 
+    def set_depth_max(self, new_depth_max: int):
+        if new_depth_max > 0:
+            self.depth_max = new_depth_max
+        else:
+            raise ValueError("depth_max must be greater than 0")
+
+    def set_depth_min(self, new_depth_min: int):
+        if new_depth_min >= 0:
+            self.depth_min = new_depth_min
+        else:
+            raise ValueError("depth_min must be greater than or equal to 0")
+
 
     def create_feed_windows(self):
         self.rootWindow = tk.Tk()
@@ -160,7 +174,7 @@ class DepthCamera:
 
         self.rootWindow.title("Camera Feed Manager")
         ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)	
+        ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Mask Window", command=self.create_mask_window).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="Frame Window", command=self.create_frame_window).pack(side=tk.BOTTOM, padx=5, pady=5)
         ttk.Button(self.rootWindow, text="HSV Window", command=self.create_HSV_window).pack(side=tk.BOTTOM, padx=5, pady=5)
@@ -179,11 +193,11 @@ class DepthCamera:
     def create_frame_window(self):
         if self.frameWindow is None or not self.frameWindow.running:
             self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
-    
+
     def create_HSV_window(self):
         if self.hsvWindow is None or not self.hsvWindow.running:
             self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV Frame')
-    
+
     def createDepthWindow(self):
         if self.depthWindow is None or not self.depthWindow.running:
             self.depthWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='Depth Frame')
@@ -218,7 +232,7 @@ class DepthCamera:
         depth_sensor.set_option(rs.option.depth_units, 0.001)
 
         cfg = self.pipeline.start(self.rsconfig)
-        
+
         self.profile = cfg.get_stream(rs.stream.depth)
         self.intr = self.profile.as_video_stream_profile().get_intrinsics()
 
@@ -232,7 +246,7 @@ class DepthCamera:
             raise Exception('Position estimation initialization failed. Please check the camera calibration.')
 
     def open(self):
-        try:            
+        try:
             self.init_realsense()
         except Exception as err:
             self.initialized = False
@@ -281,7 +295,7 @@ class DepthCamera:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
         return True, color_image, depth_image, depth_frame
-    
+
 
     def update(self):
         ret, self.frame, self.depth_frame, depth_rsframe = self.get_frame()
@@ -298,7 +312,7 @@ class DepthCamera:
 
         # red color mask (sort of thresholding, actually segmentation)
         mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
-        mask2 = cv.inRange(self.depth_frame, 2, 430)
+        mask2 = cv.inRange(self.depth_frame, self.depth_min, self.depth_max)
 
         mask = cv.bitwise_and(mask, mask2, mask=mask)
 
@@ -332,9 +346,9 @@ class DepthCamera:
                             cv.circle(frame, (x, y), 2, color=255, thickness=-1)
                             cv.putText(frame, f"{i} ({x}, {y}, {depth})", (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
                             cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                        
+
                         if self.show_video_feed:
-                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)                
+                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)
 
         if self.compute_point_cloud:
             points = self.pc.calculate(depth_rsframe)
