@@ -178,6 +178,7 @@ class EmioCamera:
             value: bool: The new point cloud computation status.
         """
         self._compute_point_cloud = value
+        self._camera.compute_point_cloud = value
 
 
     @property
