@@ -52,7 +52,7 @@ class EmioCamera:
                 camera.close()
         ```
 
-    
+
     """
     _lock = threading.Lock()
     _compute_point_cloud: bool = False
@@ -68,11 +68,11 @@ class EmioCamera:
     camera_serial: str = None
 
 
-    def __init__(self,  
-                 camera_serial: str=None, 
-                 parameter: dict=None, 
-                 show: bool=False, 
-                 track_markers: bool=False, 
+    def __init__(self,
+                 camera_serial: str=None,
+                 parameter: dict=None,
+                 show: bool=False,
+                 track_markers: bool=False,
                  compute_point_cloud: bool=False,
                  configuration: str="extended"):
         """
@@ -93,10 +93,10 @@ class EmioCamera:
         if parameter is not None:
             self._parameter = parameter
 
-        self._camera = DepthCamera(camera_serial=self.camera_serial, 
-                                       parameter=self._parameter, 
-                                       compute_point_cloud=self._compute_point_cloud, 
-                                       show_video_feed=self._show, 
+        self._camera = DepthCamera(camera_serial=self.camera_serial,
+                                       parameter=self._parameter,
+                                       compute_point_cloud=self._compute_point_cloud,
+                                       show_video_feed=self._show,
                                        tracking=self._tracking,
                                        configuration=self.configuration)
 
@@ -117,9 +117,9 @@ class EmioCamera:
             numpy.ndarray: the latest depth frame
         """
         if self.is_running:
-            return self._camera.depth_frame        
+            return self._camera.depth_frame
         return None
-    
+
     @property
     def frame(self):
         """
@@ -139,7 +139,7 @@ class EmioCamera:
             bool: The running status of the camera.
         """
         return self._running
-    
+
 
     @property
     def track_markers(self) -> bool:
@@ -149,7 +149,7 @@ class EmioCamera:
             bool: True if the camera is tracking the markers, else False.
         """
         return self._tracking
-    
+
 
     @track_markers.setter
     def track_markers(self, value: bool):
@@ -168,7 +168,7 @@ class EmioCamera:
             bool: True if the camera is computing the point cloud, else False.
         """
         return self._compute_point_cloud
-    
+
 
     @compute_point_cloud.setter
     def compute_point_cloud(self, value: bool):
@@ -179,7 +179,7 @@ class EmioCamera:
         """
         self._compute_point_cloud = value
 
-    
+
     @property
     def show_frames(self) -> bool:
         """
@@ -190,7 +190,7 @@ class EmioCamera:
         if self._camera is not None:
             self._show = self._camera.show_video_feed
         return self._show
-    
+
 
     @show_frames.setter
     def show_frames(self, value: bool):
@@ -203,7 +203,7 @@ class EmioCamera:
         if self._camera is not None:
             self._camera.show_video_feed = value
 
-    
+
     @property
     def parameters(self) -> dict:
         """
@@ -220,7 +220,7 @@ class EmioCamera:
             dict: The camera parameters.
         """
         return self._camera.parameter if self._camera else DEFAULT_CAMERA_PARAMS
-    
+
 
     @parameters.setter
     def parameters(self, value: dict):
@@ -244,7 +244,7 @@ class EmioCamera:
             value: dict: The new camera parameters.
         """
         self._parameter = value
-    
+
 
     @property
     def trackers_pos(self) -> list:
@@ -258,7 +258,7 @@ class EmioCamera:
                 return self._trackers_pos
             else:
                 return []
-    
+
     @property
     def point_cloud(self) -> np.ndarray:
         """
@@ -272,7 +272,7 @@ class EmioCamera:
             else:
                 return np.array([])
 
-    
+
     @property
     def hsv_frame(self) -> np.ndarray:
         """
@@ -285,7 +285,7 @@ class EmioCamera:
                 return self._hsv_frame
             else:
                 return None
-    
+
 
     @property
     def mask_frame(self) -> np.ndarray:
@@ -299,7 +299,7 @@ class EmioCamera:
                 return self._mask_frame
             else:
                 return None
-            
+
     @property
     def calibration_status(self) -> int:
         """
@@ -308,7 +308,7 @@ class EmioCamera:
             int: The calibration status of the camera. -1 if camera is None
         """
         return self._camera.calibration_status if self._camera  else -1
-    
+
     @property
     def fps(self) -> int:
         """
@@ -321,17 +321,58 @@ class EmioCamera:
             int: The framerate in fps
         """
         return self._camera.fps
-    
+
     @fps.setter
     def fps(self, value: int):
         """
         Set the camera framerate.
         Available framerates are 30, 60 and 90 fps.
-        Default is 60 fps. 
+        Default is 60 fps.
         """
         self._camera.set_fps(value)
 
-            
+    @property
+    def depth_max(self) -> int:
+        """
+        Get the maximum depth value of the camera in millimiters.
+        Default is 430 mm.
+        Returns:
+            int: The maximum depth value in millimiters.
+        """
+        return self._camera.depth_max
+
+    @depth_max.setter
+    def depth_max(self, value: int):
+        """
+        Set the maximum depth value of the camera in millimiters.
+        Must be positive.
+        Default is 430 mm.
+        Args:
+            value: int: The new maximum depth value in millimmiters.
+        """
+        self._camera.set_depth_max(value)
+
+    @property
+    def depth_min(self) -> int:
+        """
+        Get the minimum depth value of the camera in millimiters.
+        Default is 2 mm.
+        Returns:
+            int: The minimum depth value in millimiters.
+        """
+        return self._camera.depth_min
+
+    @depth_min.setter
+    def depth_min(self, value: int):
+        """
+        Set the minimum depth value of the camera in millimiters.
+        Must be positive.
+        Default is 2 mm.
+        Args:
+            value: int: The new minimum depth value in millimmiters.
+        """
+        self._camera.set_depth_min(value)
+
 #endregion
 
 
@@ -349,7 +390,7 @@ class EmioCamera:
             list: A list of the serial numbers as string.
         """
         return list_cameras()
-    
+
 
     def open(self, camera_serial: str=None) -> bool:
         """
@@ -384,8 +425,8 @@ class EmioCamera:
             self._running = False
             logger.error("Error opening camera: "+str(e))
             return False
-        
-        
+
+
     def calibrate(self):
         """
         Calibrate the camera. You need to set up Emio in the calibration configuration before calling this method.
@@ -409,7 +450,7 @@ class EmioCamera:
             if depth is None:
                 depth = self._camera.depth_frame[y][x]
             return self._camera.position_estimator.camera_image_to_simulation(x, y, depth)
-        
+
         return None
 
 
@@ -430,12 +471,12 @@ class EmioCamera:
                     logger.debug(f"Trackers positions in camera frame: {self._camera.trackers_pos}, converted to Emio frame: {self._trackers_pos}")
                 if self._compute_point_cloud:
                         self._point_cloud = self._camera.point_cloud
-        
+
     def close(self):
         """
         Close the camera and terminate the process. Sets the running status to False.
         """
         self._running = False
-        if self._camera is not None: 
+        if self._camera is not None:
             self._camera.close()
 #endregion

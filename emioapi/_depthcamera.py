@@ -80,6 +80,8 @@ class DepthCamera:
     maskFrame = None
     frame: np.ndarray = None
     depth_frame: np.ndarray = None
+    depth_max = 430
+    depth_min = 2
     calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
 
     @property
@@ -152,6 +154,18 @@ class DepthCamera:
             self.fps = new_fps
         else:
             raise ValueError("fps can only be 30, 60 or 90")
+
+    def set_depth_max(self, new_depth_max: int):
+        if new_depth_max > 0:
+            self.depth_max = new_depth_max
+        else:
+            raise ValueError("depth_max must be greater than 0")
+
+    def set_depth_min(self, new_depth_min: int):
+        if new_depth_min >= 0:
+            self.depth_min = new_depth_min
+        else:
+            raise ValueError("depth_min must be greater than or equal to 0")
 
 
     def create_feed_windows(self):
@@ -298,7 +312,7 @@ class DepthCamera:
 
         # red color mask (sort of thresholding, actually segmentation)
         mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
-        mask2 = cv.inRange(self.depth_frame, 2, 430)
+        mask2 = cv.inRange(self.depth_frame, self.depth_min, self.depth_max)
 
         mask = cv.bitwise_and(mask, mask2, mask=mask)
 
