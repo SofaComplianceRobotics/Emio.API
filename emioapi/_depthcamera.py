@@ -262,12 +262,13 @@ class DepthCamera:
         # Create the windows to display the binrary mask and the HSV frame
         calibration_window = CameraFeedWindow(rootWindow=self.rootWindow, name='Calibration')
 
-        while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300:
-            self.position_estimator.intr= self.intr
-            _, color_image, depth_image, _ = self.get_frame()
-            success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
-            first = success if not first else first
-            self.rootWindow.update()
+        if self.position_estimator is not None:
+            while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300:
+                self.position_estimator.intr= self.intr
+                _, color_image, depth_image, _ = self.get_frame()
+                success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
+                first = success if not first else first
+                self.rootWindow.update()
 
         if success:
             self.position_estimator.compute_camera_to_simulation_transform()
