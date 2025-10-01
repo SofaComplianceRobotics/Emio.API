@@ -314,7 +314,7 @@ class EmioCamera:
     def fps(self) -> int:
         """
         Get the current stream framerate of the camera in frames per second.
-        Default is 60 fps.
+        Default is 30 fps.
 
         You have to set the fps _before_ calling the `open` method.
 
@@ -328,7 +328,7 @@ class EmioCamera:
         """
         Set the camera framerate.
         Available framerates are 30, 60 and 90 fps.
-        Default is 60 fps.
+        Default is 30 fps.
         """
         self._camera.set_fps(value)
 

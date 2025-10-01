@@ -61,7 +61,7 @@ class DepthCamera:
     rsconfig = None
     pipeline = None
     point_cloud = None
-    fps = 60
+    fps = 30
     intr = None
     profile = None
     initialized = False
