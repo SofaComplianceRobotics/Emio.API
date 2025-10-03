@@ -271,6 +271,55 @@ class EmioMotors:
         with self._lock:
             self._mg.setVelocityProfile(max_vel)
 
+
+    @property
+    def position_p_gain(self) -> list:
+        """Get the current position P gains of the motors."""
+        with self._lock:
+            return self._mg.getPositionPGain()
+
+    @position_p_gain.setter
+    def position_p_gain(self, p_gains: list):
+        """Set the position P gains of the motors.
+        Arguments:
+            p_gains: list of position P gains for each motor.
+        """
+        with self._lock:
+            self._mg.setPositionPGain(p_gains)
+
+
+    @property
+    def position_i_gain(self) -> list:
+        """Get the current position I gains of the motors."""
+        with self._lock:
+            return self._mg.getPositionIGain()
+
+    @position_i_gain.setter
+    def position_i_gain(self, i_gains: list):
+        """Set the position I gains of the motors.
+        Arguments:
+            i_gains: list of position I gains for each motor.
+        """
+        with self._lock:
+            self._mg.setPositionIGain(i_gains)
+
+
+    @property
+    def position_d_gain(self) -> list:
+        """Get the current position D gains of the motors."""
+        with self._lock:
+            return self._mg.getPositionDGain()
+
+    @position_d_gain.setter
+    def position_d_gain(self, d_gains: list):
+        """Set the position D gains of the motors.
+        Arguments:
+            d_gains: list of position D gains for each motor.
+        """
+        with self._lock:
+            self._mg.setPositionDGain(d_gains)
+
+
     #### Read-only properties ####
     @property
     def is_connected(self) -> bool:
