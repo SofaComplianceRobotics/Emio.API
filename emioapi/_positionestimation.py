@@ -9,17 +9,17 @@ from shutil import copyfile
 from emioapi._logging_config import logger
 
 
-DEFAULT_CALIBRATION_FILE = Path(__file__).parent.joinpath("camera_2d_points.csv")
-DEFAULT_CONFIG_FILE = Path(__file__).parent.joinpath("cameraparameter.json")
 CONFIG_DIR = Path.home().joinpath(".config", "emioapi")
-CONFIG_FILENAME = CONFIG_DIR.joinpath("cameraparameter.json")
-CALIBRATION_FILENAME = CONFIG_DIR.joinpath("camera_2d_points.csv")
 
+DEFAULT_CONFIG_FILE = Path(__file__).parent.joinpath("cameraparameter.json")
+CONFIG_FILENAME = CONFIG_DIR.joinpath("cameraparameter.json")
 if not CONFIG_FILENAME.exists():
     # copy the default config file from the package to the config directory
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     copyfile(DEFAULT_CONFIG_FILE, CONFIG_FILENAME)
 
+DEFAULT_CALIBRATION_FILE = Path(__file__).parent.joinpath("camera_2d_points.csv")
+CALIBRATION_FILENAME = CONFIG_DIR.joinpath("camera_2d_points.csv")
 if not CALIBRATION_FILENAME.exists():
     # copy the default calibration file from the package to the config directory
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
