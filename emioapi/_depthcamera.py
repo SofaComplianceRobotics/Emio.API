@@ -11,10 +11,9 @@ import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-from ._positionestimation import PositionEstimation, image_pixel_to_mm
+from ._positionestimation import PositionEstimation, image_pixel_to_mm, CONFIG_FILENAME
 from emioapi._logging_config import logger
 
-CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 DEFAULT_CAMERA_PARAMS = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
 
 class CalibrationStatusEnum(Enum):
@@ -137,7 +136,7 @@ class DepthCamera:
                     logger.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
+                logger.warning(f'Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
                 self.parameter.update(DEFAULT_CAMERA_PARAMS)
 
         default_param = self.parameter.copy()
