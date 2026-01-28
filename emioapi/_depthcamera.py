@@ -2,8 +2,6 @@ import os
 import json
 from time import sleep
 import time
-import tkinter as tk
-from tkinter import ttk
 from enum import Enum
 
 import numpy as np
@@ -168,6 +166,8 @@ class DepthCamera:
 
 
     def create_feed_windows(self):
+        import tkinter as tk
+        from tkinter import ttk
         self.rootWindow = tk.Tk()
         self.rootWindow.resizable(False, False)
 
