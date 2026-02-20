@@ -257,15 +257,15 @@ class MotorGroup:
                 self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_OPERATING_MODE, mode)
 
 
-    def setInVelocityMode(self):
+    def enableVelocityMode(self):
         self.setOperatingMode(self.parameters.VELOCITY_MODE)
 
 
-    def setInExtendedPositionMode(self):
+    def enableExtendedPositionMode(self):
         self.setOperatingMode(self.parameters.EXT_POSITION_MODE)
 
 
-    def setInPositionMode(self):
+    def enablePositionMode(self):
         self.setOperatingMode(self.parameters.POSITION_MODE)
 
 

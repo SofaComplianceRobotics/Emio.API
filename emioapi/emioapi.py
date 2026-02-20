@@ -167,17 +167,18 @@ class EmioAPI:
         return EmioCamera.listCameras()
     
     
-    def connectToEmioDevice(self, device_name: str=None) -> bool:
+    def connectToEmioDevice(self, device_name: str=None, multi_turn: bool=False) -> bool:
         """
         Connect to the emio device with the given name.
         
         Args:
             device_name: str: The name of the device to connect to. If None, the first device found that is not used will be used.
+            multi_turn: bool: Whether to enable the multi-turn mode of the motors. In multi-turn mode on, the angles interval is [-256*2π, 256*2π]
 
         Returns:
             True if the connection is successful, False otherwise.
         """
-        connected_index = self.motors.findAndOpen(device_name)
+        connected_index = self.motors.findAndOpen(device_name, multi_turn)
 
         if connected_index>=0: # try to connect to the camera if foud a Emio to connect to
             self.device_index = connected_index
