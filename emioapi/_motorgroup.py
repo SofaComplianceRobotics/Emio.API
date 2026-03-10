@@ -1,3 +1,5 @@
+import ctypes
+
 from dynamixel_sdk import *
 
 import emioapi._emiomotorsparameters as MotorsParametersTemplate
@@ -232,7 +234,8 @@ class MotorGroup:
             dxl_getdata_result = groupSyncRead.isAvailable(DXL_ID, groupSyncRead.start_address, groupSyncRead.data_length)
             if dxl_getdata_result != True:
                 return None
-            result.append(groupSyncRead.getData(DXL_ID, groupSyncRead.start_address, groupSyncRead.data_length))
+            angle = ctypes.c_int(groupSyncRead.getData(DXL_ID, groupSyncRead.start_address, groupSyncRead.data_length))
+            result.append(angle.value)
 
         return result
     
