@@ -1,5 +1,6 @@
 from dataclasses import field
 from threading import Lock
+from math import pi
 
 import emioapi._motorgroup as motorgroup
 import emioapi._emiomotorsparameters as emioparameters
@@ -39,7 +40,7 @@ class EmioMotors:
 
     _initialized: bool = False
     _length_to_rad: float = 1.0 / 20.0  # 1/radius of the pulley
-    _rad_to_pulse: int = 4096 / (2 * 3.1416)  # the resolution of the Dynamixel xm430 w210
+    _rad_to_pulse: int = 4096 / (2 * pi)  # the resolution of the Dynamixel xm430 w210
     _length_to_pulse: int = _length_to_rad * _rad_to_pulse
     _pulse_center: int = 2048
     _max_vel: float = 1000  # *0.01 rev/min
@@ -113,11 +114,11 @@ class EmioMotors:
         Returns:
             A list of angles in degrees for each motor.
         """
-        return [(self._pulse_center - float(item)) / self._rad_to_pulse * 180.0 / 3.1416 for item in pulse]
+        return [(self._pulse_center - float(item)) / self._rad_to_pulse * 180.0 / pi for item in pulse]
 
 
-    def _openAndConfig(self, device_name: str=None) -> bool:
-        """Open the connection to the motors, configure it for position mode and enable torque sensing."""
+    def _openAndConfig(self, device_name: str=None, multi_turn:bool = False) -> bool:
+        """Open the connection to the motors, configure it for position mode in multi-turn or not and enable torque sensing."""
         with self._lock:
             try:
                 self._mg.updateDeviceName(device_name)
@@ -127,37 +128,43 @@ class EmioMotors:
                     return False
 
                 self._mg.open()
+                self._mg.disableTorque()
                 self._mg.clearPort()
-                self._mg.setInPositionMode()
+                if multi_turn:
+                    self.enableExtendedPositionMode()
+                else:
+                    self.enablePositionMode()
                 self._mg.enableTorque()
 
-                logger.debug(f"Motor group opened and configured. Device name: {self._mg.deviceName}")
+                logger.debug(f"Motor group opened and configured. Device name: {self._mg.deviceName}, Multi turn activated: {multi_turn}")
                 return True
             except Exception as e:
                 logger.error(f"Failed to open and configure the motor group: {e}")
                 return False
 
 
-    def open(self, device_name: str=None) -> bool:
+    def open(self, device_name: str=None, multi_turn: bool=False) -> bool:
         """
         Open the connection to the motors.
 
         Args:
             device_name: str: if set, it will connect to the device with the given name, If not set, the first emio device will be used.
+            multi_turn: bool: Whether to enable the multi-turn mode of the motors. In multi-turn mode on, the angles interval is [-256*2π, 256*2π]
         """
-        if self._openAndConfig(device_name):
+        if self._openAndConfig(device_name, multi_turn):
             self._device_index = motorgroup.listMotors().index(self._mg.deviceName)
             logger.info(f"Connected to emio device: {self._mg.deviceName}")
             return True
         return False
 
 
-    def findAndOpen(self, device_name: str=None) -> int:
+    def findAndOpen(self, device_name: str=None, multi_turn: bool=False) -> int:
         """
         Iterate over the serial ports and try to conenct to the first available emio motors.
 
         Args:
             device_name: str: If set, It will try to connected to the given device name (port name)
+            multi_turn: bool: Whether to enable the multi-turn mode of the motors. In multi-turn mode on, the angles interval is [-256*2π, 256*2π]
 
         Returns:
             the index in the list of port to which it connected. If no connection was possible, returns -1.
@@ -166,8 +173,7 @@ class EmioMotors:
             try:
                 index = motorgroup.listMotors().index(device_name)
                 logger.info(f"Trying given emio number {index} on port: {device_name}.")
-                self.open(device_name)
-                return index if len(motorgroup.listMotors())>0 and self.open(device_name) else -1
+                return index if len(motorgroup.listMotors())>0 and self.open(device_name, multi_turn) else -1
             except:
                 return -1
 
@@ -179,7 +185,7 @@ class EmioMotors:
             while not connected and index<len(motorgroup.listMotors()):
                 device_name = motorgroup.listMotors()[index]
                 logger.info(f"Trying emio number {index} on port: {device_name}.")
-                connected = self.open(device_name)
+                connected = self.open(device_name, multi_turn)
 
                 if connected:
                     self._device_index = index
@@ -193,15 +199,28 @@ class EmioMotors:
     def close(self):
         """Close the connection to the motors."""
         with self._lock:
-            self._mg.close()
-            logger.info("Motors connection closed.")
+            try:
+                self._mg.close()
+                logger.info("Motors connection closed.")
+            except Exception as e:
+                print(e)
 
 
     def printStatus(self):
         """Print the current position of the motors."""
         with self._lock:
-            logger.info(f"Current position of the motors in radians: {[ a%3.14 for a in self.pulseToRad(self._mg.getCurrentPosition())]}")
+            current_pos = self._mg.getCurrentPosition()
+            logger.info(f"Current position of the motors in radians: {[ a%pi for a in self.pulseToRad(current_pos)]}\n"
+            +f"{' '*75} in pulses: {[ a for a in current_pos]}\n"
+            +f"{' '*75} in degrees: {[ a*180/pi for a in self.pulseToRad(current_pos)]}")
 
+    
+    def enablePositionMode(self):
+        self._mg.enablePositionMode()
+
+    
+    def enableExtendedPositionMode(self):
+        self._mg.enableExtendedPositionMode()
 
 
     ####################

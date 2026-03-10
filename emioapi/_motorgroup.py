@@ -1,3 +1,5 @@
+import ctypes
+
 from dynamixel_sdk import *
 
 import emioapi._emiomotorsparameters as MotorsParametersTemplate
@@ -170,6 +172,7 @@ class MotorGroup:
         except Exception as e:
             logger.exception(f"Failed to check connection: {e}")
             return False
+        
 
     def _updateGroups(self):
         """
@@ -183,6 +186,7 @@ class MotorGroup:
             group.port = self.portHandler
             group.ph = self.packetHandler
 
+
     def updateDeviceName(self, device_name: str=None):
         """
         Update the device name based on the available ports. This will get the first FTDI device found if no device name is provided.
@@ -195,6 +199,7 @@ class MotorGroup:
         logger.debug(f"Device name updated to: {self.deviceName}")
 
         return
+    
 
     def _isDeviceDetected(self):
         for port in serial.tools.list_ports.comports():
@@ -203,7 +208,7 @@ class MotorGroup:
         return False
 
 
-    def _readMotorsData(self, groupSyncRead:GroupSyncRead):
+    def _readSyncMotorsData(self, groupSyncRead:GroupSyncRead):
         """Read data from the motor.
 
         Args:
@@ -229,47 +234,13 @@ class MotorGroup:
             dxl_getdata_result = groupSyncRead.isAvailable(DXL_ID, groupSyncRead.start_address, groupSyncRead.data_length)
             if dxl_getdata_result != True:
                 return None
-            result.append(groupSyncRead.getData(DXL_ID, groupSyncRead.start_address, groupSyncRead.data_length))
+            angle = ctypes.c_int(groupSyncRead.getData(DXL_ID, groupSyncRead.start_address, groupSyncRead.data_length))
+            result.append(angle.value)
 
         return result
+    
 
-
-    def setOperatingMode(self, mode):
-        """Set the operating mode of the motors.
-        Args:
-            mode (int): The operating mode to set.
-                0: Current Control Mode
-                1: Velocity Control Mode
-                3: (Default) Position Control Mode
-                4: Extended Position Control Mode
-                5: Current-bqsed Position Control Mode
-                16: PWM Control Mode
-
-                See https://emanual.robotis.com/docs/en/dxl/x/xc330-t288/#operating-mode for more details.
-        """
-        if not self.isConnected:
-            raise DisconnectedException()
-
-        for DXL_ID in self.parameters.DXL_IDs:
-            value = self.packetHandler.read1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_OPERATING_MODE)
-            if value != mode:
-                logger.debug("Motor mode changed to mode %s (%s,%s)" % (mode, self.deviceName, DXL_ID))
-                self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_OPERATING_MODE, mode)
-
-
-    def setInVelocityMode(self):
-        self.setOperatingMode(self.parameters.VELOCITY_MODE)
-
-
-    def setInExtendedPositionMode(self):
-        self.setOperatingMode(self.parameters.EXT_POSITION_MODE)
-
-
-    def setInPositionMode(self):
-        self.setOperatingMode(self.parameters.POSITION_MODE)
-
-
-    def __writeMotorsData(self, group: GroupSyncWrite, values):
+    def __writeSyncMotorsData(self, group: GroupSyncWrite, values):
         """Helper function to write data to the motors.
         Args:
             group (GroupSyncWrite): The group sync write object.
@@ -289,6 +260,70 @@ class MotorGroup:
             group.addParam(DXL_ID, data)
         group.txPacket()
 
+    
+    def __write1Byte(self, paramAddress, paramValue):
+        if not self.isConnected:
+            raise DisconnectedException()
+        
+        for DXL_ID in self.parameters.DXL_IDs:
+                dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, paramAddress, paramValue)
+                if dxl_comm_result != COMM_SUCCESS:
+                   raise Exception(f"Failed to change operating mode: {self.packetHandler.getTxRxResult(dxl_comm_result)}")
+                elif dxl_error != 0:
+                     raise Exception(f"Failed to change operating mode: {self.packetHandler.getTxRxResult(dxl_error)}")
+                else:
+                    logger.debug("Motor Data %s changed to %s (%s,%s)" % (paramAddress, paramValue, self.deviceName, DXL_ID))
+
+
+    def __setOperatingMode(self, mode):
+        """Set the operating mode of the motors.
+        Args:
+            mode (int): The operating mode to set.
+                0: Current Control Mode
+                1: Velocity Control Mode
+                3: (Default) Position Control Mode
+                4: Extended Position Control Mode
+                5: Current-bqsed Position Control Mode
+                16: PWM Control Mode
+
+                See https://emanual.robotis.com/docs/en/dxl/x/xc330-t288/#operating-mode for more details.
+        """
+        if not self.isConnected:
+            raise DisconnectedException()
+        
+        self.__write1Byte(self.parameters.ADDR_OPERATING_MODE, mode)
+
+
+
+    def enableVelocityMode(self):
+        torques = self.isTorqueEnable()
+
+        if any(t==1 for t in torques):
+            self.disableTorque()
+        self.__setOperatingMode(self.parameters.VELOCITY_MODE)
+        if any(t==1 for t in torques):
+            self.enableTorque()
+
+
+    def enableExtendedPositionMode(self):
+        torques = self.isTorqueEnable()
+
+        if any(t==1 for t in torques):
+            self.disableTorque()
+        self.__setOperatingMode(self.parameters.EXT_POSITION_MODE)
+        if any(t==1 for t in torques):
+            self.enableTorque()
+
+
+    def enablePositionMode(self):
+        torques = self.isTorqueEnable()
+
+        if any(t==1 for t in torques):
+            self.disableTorque()
+        self.__setOperatingMode(self.parameters.POSITION_MODE)
+        if any(t==1 for t in torques):
+            self.enableTorque()
+
 
     def setGoalVelocity(self, speeds):
         """Set the goal velocity
@@ -296,7 +331,7 @@ class MotorGroup:
         Args:
             speeds (list of numbers): unit depends on motor type
         """
-        self.__writeMotorsData(self.groupWriters["goal_velocity"] , speeds)
+        self.__writeSyncMotorsData(self.groupWriters["goal_velocity"] , speeds)
 
 
     def setGoalPosition(self, positions):
@@ -305,7 +340,7 @@ class MotorGroup:
         Args:
             positions (list of numbers): unit = 1 pulse
         """
-        self.__writeMotorsData(self.groupWriters["goal_position"], positions)
+        self.__writeSyncMotorsData(self.groupWriters["goal_position"], positions)
 
 
     def setVelocityProfile(self, max_vel):
@@ -314,7 +349,7 @@ class MotorGroup:
         Args:
             positions (list of numbers): unit depends on the motor type
         """
-        self.__writeMotorsData(self.groupWriters["velocity_profile"], max_vel)
+        self.__writeSyncMotorsData(self.groupWriters["velocity_profile"], max_vel)
 
 
     def setPositionPGain(self, p_gains):
@@ -323,7 +358,7 @@ class MotorGroup:
         Args:
             p_gains (list of numbers): unit depends on the motor type
         """
-        self.__writeMotorsData(self.groupWriters["position_p_gain"], p_gains)
+        self.__writeSyncMotorsData(self.groupWriters["position_p_gain"], p_gains)
 
 
     def setPositionIGain(self, i_gains):
@@ -332,7 +367,7 @@ class MotorGroup:
         Args:
             i_gains (list of numbers): unit depends on the motor type
         """
-        self.__writeMotorsData(self.groupWriters["position_i_gain"], i_gains)
+        self.__writeSyncMotorsData(self.groupWriters["position_i_gain"], i_gains)
 
 
     def setPositionDGain(self, d_gains):
@@ -341,7 +376,7 @@ class MotorGroup:
         Args:
             d_gains (list of numbers): unit depends on the motor type
         """
-        self.__writeMotorsData(self.groupWriters["position_d_gain"], d_gains)
+        self.__writeSyncMotorsData(self.groupWriters["position_d_gain"], d_gains)
 
 
     def getCurrentPosition(self) -> list:
@@ -349,7 +384,7 @@ class MotorGroup:
         Returns:
             list of numbers: unit = 1 pulse
         """
-        return self._readMotorsData(self.groupReaders["position"])
+        return self._readSyncMotorsData(self.groupReaders["position"])
 
 
     def getGoalPosition(self) -> list:
@@ -357,14 +392,14 @@ class MotorGroup:
         Returns:
             list of numbers: unit = 1 pulse
         """
-        return self._readMotorsData(self.groupReaders["goal_position"])
+        return self._readSyncMotorsData(self.groupReaders["goal_position"])
 
     def getGoalVelocity(self) -> list:
         """Get the goal velocity of the motors
         Returns:
             list of velocities: unit is rev/min
         """
-        return self._readMotorsData(self.groupReaders["goal_velocity"])
+        return self._readSyncMotorsData(self.groupReaders["goal_velocity"])
 
 
     def getCurrentVelocity(self) -> list:
@@ -372,7 +407,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self._readMotorsData(self.groupReaders["velocity"])
+        return self._readSyncMotorsData(self.groupReaders["velocity"])
 
 
     def isMoving(self) -> list:
@@ -380,7 +415,7 @@ class MotorGroup:
         Returns:
             list of booleans: True if the motor is moving, False otherwise
         """
-        return self._readMotorsData(self.groupReaders["moving"])
+        return self._readSyncMotorsData(self.groupReaders["moving"])
 
 
     def getMovingStatus(self) -> list:
@@ -388,7 +423,7 @@ class MotorGroup:
         Returns:
             list of booleans: True if the motor is moving, False otherwise
         """
-        return self._readMotorsData(self.groupReaders["moving_status"])
+        return self._readSyncMotorsData(self.groupReaders["moving_status"])
 
 
     def getVelocityTrajectory(self) -> list:
@@ -396,7 +431,7 @@ class MotorGroup:
         Returns:
             list of velocities: unit is rev/min
         """
-        return self._readMotorsData(self.groupReaders["velocity_trajectory"])
+        return self._readSyncMotorsData(self.groupReaders["velocity_trajectory"])
 
 
     def getPositionTrajectory(self) -> list:
@@ -404,7 +439,7 @@ class MotorGroup:
         Returns:
             list of positions: unit = 1 pulse
         """
-        return self._readMotorsData(self.groupReaders["position_trajectory"])
+        return self._readSyncMotorsData(self.groupReaders["position_trajectory"])
 
 
     def getPositionPGain(self) -> list:
@@ -412,7 +447,7 @@ class MotorGroup:
         Returns:
             list of P gains: unit depends on the motor type
         """
-        return self._readMotorsData(self.groupReaders["position_p_gain"])
+        return self._readSyncMotorsData(self.groupReaders["position_p_gain"])
 
 
     def getPositionIGain(self) -> list:
@@ -420,7 +455,7 @@ class MotorGroup:
         Returns:
             list of I gains: unit depends on the motor type
         """
-        return self._readMotorsData(self.groupReaders["position_i_gain"])
+        return self._readSyncMotorsData(self.groupReaders["position_i_gain"])
 
 
     def getPositionDGain(self) -> list:
@@ -428,7 +463,7 @@ class MotorGroup:
         Returns:
             list of D gains: unit depends on the motor type
         """
-        return self._readMotorsData(self.groupReaders["position_d_gain"])
+        return self._readSyncMotorsData(self.groupReaders["position_d_gain"])
 
 
     def open(self) -> None:
@@ -445,12 +480,25 @@ class MotorGroup:
 
     def enableTorque(self):
         """Enable the torque of the motors."""
-        if not self.isConnected:
-            raise DisconnectedException()
+        self.__write1Byte(self.parameters.ADDR_TORQUE_ENABLE, self.parameters.TORQUE_ENABLE)
+            
 
+    def disableTorque(self):
+        """Disable the torque of the motors."""        
+        self.__write1Byte(self.parameters.ADDR_TORQUE_ENABLE, self.parameters.TORQUE_DISABLE)
+
+
+    def isTorqueEnable(self):
+        torques = []
         for DXL_ID in self.parameters.DXL_IDs:
-            self.packetHandler.write1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_TORQUE_ENABLE,
-                                              self.parameters.TORQUE_ENABLE)
+            torque, dxl_comm_result, dxl_error = self.packetHandler.read1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_TORQUE_ENABLE)
+            if dxl_comm_result != COMM_SUCCESS:
+                   raise Exception(f"Failed to read torque: {self.packetHandler.getTxRxResult(dxl_comm_result)}")
+            elif dxl_error != 0:
+                     raise Exception(f"Failed to read torque: {self.packetHandler.getTxRxResult(dxl_error)}")
+            torques.append(torque)
+        return torques
+    
 
     def close(self) -> None:
         """Close the port and disable the torque of the motors."""
