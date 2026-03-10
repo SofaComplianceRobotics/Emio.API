@@ -128,6 +128,7 @@ class EmioMotors:
                     return False
 
                 self._mg.open()
+                self._mg.disableTorque()
                 self._mg.clearPort()
                 if multi_turn:
                     self.enableExtendedPositionMode()
@@ -208,9 +209,10 @@ class EmioMotors:
     def printStatus(self):
         """Print the current position of the motors."""
         with self._lock:
-            logger.info(f"Current position of the motors in radians: {[ a%pi for a in self.pulseToRad(self._mg.getCurrentPosition())]}\n"
-            +f"{' '*75} in pulses: {[ a for a in self._mg.getCurrentPosition()]}\n"
-            +f"{' '*75} in degrees: {[ a*180/pi for a in self.pulseToRad(self._mg.getCurrentPosition())]}")
+            current_pos = self._mg.getCurrentPosition()
+            logger.info(f"Current position of the motors in radians: {[ a%pi for a in self.pulseToRad(current_pos)]}\n"
+            +f"{' '*75} in pulses: {[ a for a in current_pos]}\n"
+            +f"{' '*75} in degrees: {[ a*180/pi for a in self.pulseToRad(current_pos)]}")
 
     
     def enablePositionMode(self):

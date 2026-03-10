@@ -36,11 +36,11 @@ def main(emio: EmioMotors, loops=1):
                 time.sleep(1)
                 emio.printStatus()
             else:
+                print("Reconnecting")
                 emio.open(multi_turn=True)
         except Exception as e:
             logger.error(f"Error during communication: {e}")
     emio.close()
-    emio.open()
 
 
 if __name__ == "__main__":
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         
         emio_motors = EmioMotors()
         
-        if emio_motors.open(): 
+        if emio_motors.open(multi_turn=True): 
             
             emio_motors.printStatus()
 
