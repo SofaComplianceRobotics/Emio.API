@@ -480,24 +480,15 @@ class MotorGroup:
 
     def enableTorque(self):
         """Enable the torque of the motors."""
-        if not self.isConnected:
-            raise DisconnectedException()
-
         self.__write1Byte(self.parameters.ADDR_TORQUE_ENABLE, self.parameters.TORQUE_ENABLE)
             
 
     def disableTorque(self):
-        """Disable the torque of the motors."""
-        if not self.isConnected:
-            raise DisconnectedException()
-        
+        """Disable the torque of the motors."""        
         self.__write1Byte(self.parameters.ADDR_TORQUE_ENABLE, self.parameters.TORQUE_DISABLE)
 
 
     def isTorqueEnable(self):
-        if not self.isConnected:
-            raise DisconnectedException()
-
         torques = []
         for DXL_ID in self.parameters.DXL_IDs:
             torque, dxl_comm_result, dxl_error = self.packetHandler.read1ByteTxRx(self.portHandler, DXL_ID, self.parameters.ADDR_TORQUE_ENABLE)
