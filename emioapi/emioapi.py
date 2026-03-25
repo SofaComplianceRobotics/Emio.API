@@ -23,6 +23,7 @@ from dataclasses import field
 
 from threading import Lock
 
+from dynamixelmotorsapi import listFTDIDevices, listUnusedFTDIDevices, listUsedFTDIDevices
 from emioapi import EmioMotors
 from emioapi import MultiprocessEmioCamera
 from emioapi import EmioCamera, emiocamera
@@ -138,7 +139,7 @@ class EmioAPI:
         Returns:
             A list of device names (the ports).
         """
-        return motorgroup.listMotors()
+        return listFTDIDevices()
     
     
     @staticmethod
@@ -149,7 +150,7 @@ class EmioAPI:
         Returns:
             A list of device names (the ports).
         """
-        return [device for device in EmioAPI.listEmioDevices() if device not in EmioAPI._emio_list]
+        return listUnusedFTDIDevices()
     
     
     @staticmethod
@@ -160,7 +161,7 @@ class EmioAPI:
         Returns:
             A list of device names (the ports).
         """
-        return [device for device in EmioAPI._emio_list.keys()]
+        return listUsedFTDIDevices()
     
     @staticmethod
     def listCameraDevices():

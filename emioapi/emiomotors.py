@@ -3,9 +3,6 @@ from threading import Lock
 from math import pi
 
 from dynamixelmotorsapi import DynamixelMotors
-
-import emioapi._motorgroup as motorgroup
-import emioapi._emiomotorsparameters as emioparameters
 from emioapi._logging_config import logger
 
 class EmioMotors(DynamixelMotors):
@@ -39,18 +36,6 @@ class EmioMotors(DynamixelMotors):
         ```
 
     """
-
-    # _initialized: bool = False
-    # _length_to_rad: float = 1.0 / 20.0  # 1/radius of the pulley
-    # _rad_to_pulse: int = 4096 / (2 * pi)  # the resolution of the Dynamixel xm430 w210
-    # _length_to_pulse: int = _length_to_rad * _rad_to_pulse
-    # _pulse_center: int = 2048
-    # _max_vel: float = 1000  # *0.01 rev/min
-    # _goal_velocity: list = field(default_factory=lambda: [0] * len(emioparameters.DXL_IDs))
-    # _goal_position: list = field(default_factory=lambda: [0] * len(emioparameters.DXL_IDs))
-    # _mg: motorgroup.MotorGroup = None
-    # _device_index: int = None
-
 
 
     #####################
