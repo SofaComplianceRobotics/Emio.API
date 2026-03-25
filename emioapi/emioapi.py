@@ -23,7 +23,7 @@ from dataclasses import field
 
 from threading import Lock
 
-from emioapi import EmioMotors, motorgroup
+from emioapi import EmioMotors
 from emioapi import MultiprocessEmioCamera
 from emioapi import EmioCamera, emiocamera
 from emioapi._logging_config import logger

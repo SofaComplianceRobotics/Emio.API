@@ -9,12 +9,13 @@ requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
     "pyserial",
- "dynamixel_sdk",
- "pyrealsense2; platform_system != 'Darwin'",
- "pyrealsense2-macosx; platform_system == 'Darwin'",
- "opencv-python",
- "numpy==1.26.4",
- "pillow",
+    "dynamixel_sdk",
+    "pyrealsense2; platform_system != 'Darwin'",
+    "pyrealsense2-macosx; platform_system == 'Darwin'",
+    "opencv-python",
+    "numpy==1.26.4",
+    "pillow",
+    "dynamixelmotorsapi",
 ]
 description = "An API for controlling  the motors of the EMIO robot."
 keywords = ["roboticsc", "emio", "api"]
@@ -72,3 +73,6 @@ Class = 2
 Method = 3
 Function = 3
 Data = 3
+
+[tool.uv.sources]
+dynamixelmotorsapi = { url = "https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI/releases/download/release-dev_motorsgeneralization/dynamixelmotorsapi-0.2.0-py3-none-any.whl" }
