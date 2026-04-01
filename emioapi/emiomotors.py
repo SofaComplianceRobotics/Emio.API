@@ -42,7 +42,6 @@ class EmioMotors(DynamixelMotors):
     ###### METHODS ######
     #####################
 
-
     def __init__(self):
         super().__init__([{
             "id": [0, 1, 2, 3],
