@@ -76,3 +76,8 @@ Data = 3
 
 [tool.uv.sources]
 dynamixelmotorsapi = { git = "https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI", rev = "release-v0.1.0" }
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.10.8",
+]
