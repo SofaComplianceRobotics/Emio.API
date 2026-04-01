@@ -55,8 +55,6 @@ class EmioMotors:
     ###### METHODS ######
     #####################
 
-
-
     def __init__(self):
         self._lock = Lock()
         if not self._initialized:
