@@ -80,6 +80,7 @@ class DepthCamera:
     maskFrame = None
     frame: np.ndarray = None
     depth_frame: np.ndarray = None
+    depth_rsframe: np.ndarray = None
     depth_max = 430
     depth_min = 2
     calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
@@ -290,19 +291,24 @@ class DepthCamera:
         color_frame = frames.get_color_frame()
 
         if not depth_frame or not color_frame:
-            return False, color_frame, depth_frame
+            return False
 
         # Convert images to numpy arrays
-        depth_image = np.asanyarray(depth_frame.get_data())
-        color_image = np.asanyarray(color_frame.get_data())
-        return True, color_image, depth_image, depth_frame
+        self.depth_frame = np.asanyarray(depth_frame.get_data())
+        self.frame = np.asanyarray(color_frame.get_data())
+        self.depth_rsframe = depth_frame
+
+        return True
 
 
     def update(self):
-        ret, self.frame, self.depth_frame, depth_rsframe = self.get_frame()
-
+        ret = self.get_frame()
         if ret is False:
             return
+        self.process_frame()
+
+    def process_frame(self):
+
         # if frame is read correctly ret is True
 
         self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
@@ -352,7 +358,7 @@ class DepthCamera:
                             cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)
 
         if self.compute_point_cloud:
-            points = self.pc.calculate(depth_rsframe)
+            points = self.pc.calculate(self.depth_rsframe)
             v = points.get_vertices()
             self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
@@ -370,7 +376,7 @@ class DepthCamera:
                 self.hsvWindow.set_frame(self.hsvFrame)
 
             if self.depthWindow is not None and self.depthWindow.running:
-                colorized = np.asanyarray(rs.colorizer().colorize(depth_rsframe).get_data())
+                colorized = np.asanyarray(rs.colorizer().colorize(self.depth_rsframe).get_data())
                 self.depthWindow.set_frame(colorized)
 
             self.rootWindow.update()
