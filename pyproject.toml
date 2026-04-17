@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emioapi"
-version = "0.1.1"
+version = "0.2.0"
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
@@ -72,3 +72,8 @@ Class = 2
 Method = 3
 Function = 3
 Data = 3
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.10.8",
+]

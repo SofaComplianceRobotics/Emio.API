@@ -2,8 +2,6 @@ import os
 import json
 from time import sleep
 import time
-import tkinter as tk
-from tkinter import ttk
 from enum import Enum
 
 import numpy as np
@@ -11,10 +9,9 @@ import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-from ._positionestimation import PositionEstimation, image_pixel_to_mm
+from ._positionestimation import PositionEstimation, image_pixel_to_mm, CONFIG_FILENAME
 from emioapi._logging_config import logger
 
-CONFIG_FILENAME = os.path.dirname(__file__) + '/cameraparameter.json'
 DEFAULT_CAMERA_PARAMS = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
 
 class CalibrationStatusEnum(Enum):
@@ -69,7 +66,7 @@ class DepthCamera:
     compute_point_cloud = False
     position_estimator: PositionEstimation = None
     parameter = {}
-    tracking = True
+    tracking = False
     trackers_pos = []
     maskWindow = None
     frameWindow = None
@@ -120,7 +117,7 @@ class DepthCamera:
         self.show_video_feed = show_video_feed
         self.compute_point_cloud = compute_point_cloud
         self.configuration = configuration
-
+        self._camera_serial = camera_serial
         self.initialized = True
 
         if not self.initialized:
@@ -138,7 +135,7 @@ class DepthCamera:
                     logger.info(f'Config file {CONFIG_FILENAME} found. Using parameters {self.parameter}')
 
             except FileNotFoundError:
-                logger.warning('Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
+                logger.warning(f'Config file {CONFIG_FILENAME} not found. Using default parameters {DEFAULT_CAMERA_PARAMS}')
                 self.parameter.update(DEFAULT_CAMERA_PARAMS)
 
         default_param = self.parameter.copy()
@@ -170,6 +167,8 @@ class DepthCamera:
 
 
     def create_feed_windows(self):
+        import tkinter as tk
+        from tkinter import ttk
         self.rootWindow = tk.Tk()
         self.rootWindow.resizable(False, False)
 
@@ -217,8 +216,8 @@ class DepthCamera:
         self.rsconfig = rs.config()
         self.pc = rs.pointcloud()
 
-        if  self.camera_serial is not None:
-            self.rsconfig.enable_device(self.camera_serial)
+        if  self._camera_serial is not None:
+            self.rsconfig.enable_device(self._camera_serial)
 
         # Get device product line for setting a supporting resolution
         self.pipeline_wrapper = rs.pipeline_wrapper(self.pipeline)
@@ -269,7 +268,8 @@ class DepthCamera:
                 _, color_image, depth_image, _ = self.get_frame()
                 success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
                 first = success if not first else first
-                self.rootWindow.update()
+                if self.show_video_feed:
+                    self.rootWindow.update()
 
         if success:
             self.position_estimator.compute_camera_to_simulation_transform()
@@ -355,7 +355,7 @@ class DepthCamera:
                             cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
 
                         if self.show_video_feed:
-                            cv.drawContours(self.frame, contours[i], -1, (255, 255, 0), 3)
+                            cv.drawContours(self.frame, [contours[i]], -1, (255, 255, 0), 3)
 
         if self.compute_point_cloud:
             points = self.pc.calculate(self.depth_rsframe)
