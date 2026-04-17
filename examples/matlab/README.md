@@ -1,5 +1,17 @@
 # TP Robotique Compliante — Python/Simulink Bridge
 
+## Dépendances
+
+Repose sur des modifications apportées à `emioapi/_depthcamera.py` :
+
+- Accès aux coordonnées brutes de la caméra (ajout de la variable `trackers_camera` 
+(pour le mode `"front"`, sans bruit de traitement)
+- Ajout d'une fonction `process_frame()` pour séparer l'acquisition de la caméra
+  du traitement des données (pour des evenements dans les process). Mais
+  `update()` reste fonctionnel en appelant `process_frame()` à l'intérieur.
+
+---
+
 ## Lancement
 
 ```bash
@@ -18,7 +30,7 @@ Le seul fichier à modifier est **`params.py`** :
 
 | Paramètre | Description |
 |---|---|
-| `fps` | Fréquence de la caméra (Hz) |
+| `fps` | Fréquence de la boucle (Hz) |
 | `nb_markers` | Nombre de marqueurs suivis par la caméra |
 | `side` | Point de vue caméra : `"top"` ou `"front"` |
 
