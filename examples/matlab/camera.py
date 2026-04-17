@@ -3,7 +3,7 @@ from multiprocessing.synchronize import Event
 
 import cv2 as cv
 import numpy as np
-from emioapi._depthcamera import DepthCamera
+from emioapi.emiocamera import EmioCamera
 
 import params as prm
 
@@ -41,31 +41,31 @@ def process_camera(shared_markers_pos: SynchronizedArray,
 
         k = cv.waitKey(1)
         if k == ord('q'):
-            camera.quit()
+            camera.close()
             break
 
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
-def setup_camera() -> DepthCamera:
+def setup_camera() -> EmioCamera:
     """Initialise and open the depth camera from ``params``.
 
     Returns:
         A configured, open DepthCamera instance.
     """
-    camera = DepthCamera(
-        show_video_feed=True,
-        tracking=True,
+    camera = EmioCamera(
+        show=True,
+        track_markers=True,
         compute_point_cloud=False
         )
-    camera.set_fps(prm.fps)
-    camera.set_depth_min(0)
-    camera.set_depth_max(1000)
+    camera.fps = prm.fps
+    camera.depth_min = 0
+    camera.depth_max = 1000
     camera.open()
     return camera
 
 # -------------------------------------------------------
-def process_frame(camera: DepthCamera, last_pos: np.ndarray) -> np.ndarray:
+def process_frame(camera: EmioCamera, last_pos: np.ndarray) -> np.ndarray:
     """Extract marker positions from the current frame.
 
     Returns ``last_pos`` unchanged if the expected number of markers is not
@@ -81,15 +81,28 @@ def process_frame(camera: DepthCamera, last_pos: np.ndarray) -> np.ndarray:
     camera.process_frame()
     if len(camera.trackers_pos) == prm.nb_markers:
         if prm.side == "top":
-            pos = np.array(camera.trackers_pos).reshape(-1, 3).copy()
+            pos = np.array(camera.trackers_pos).reshape(prm.nb_markers, 3).copy()
             pos = pos.astype(np.float64)
             return pos
+
         elif prm.side == "front":
-            p = np.array(camera.trackers_camera).reshape(prm.nb_markers, 3).copy()
+            p = np.array(camera.trackers_pos_image).reshape(prm.nb_markers, 3).copy()
             p = p.astype(np.float64)
             p = pixel_to_mm(p, prm.depth)
             p = camera_to_sofa_order(p)
             return p.reshape((-1, 1))
+
+        elif prm.side == "plan":
+            trackers_projected = []
+            for pixel_pos in camera.trackers_pos_image:
+                result = camera._camera.position_estimator.camera_image_to_simulation_plane_intersection(
+                    pixel_pos[0],pixel_pos[1],prm.plane_n, prm.plane_d)
+                trackers_projected.append(result)
+            p = np.array(trackers_projected).reshape(prm.nb_markers, 3).copy()
+            p = p.astype(np.float64)
+            p = camera_to_sofa_order(p)
+            return p.reshape((-1, 1))
+
     return last_pos
 
 # -------------------------------------------------------
@@ -107,6 +120,7 @@ def pixel_to_mm(points: np.ndarray, depth: float) -> np.ndarray:
     fx, fy = 382.605, 382.605
     points[:, 0] = ((points[:, 0] - ppx) / fx) * depth
     points[:, 1] = ((points[:, 1] - ppy) / fy) * depth
+    points += prm.front2top_offset
     points = np.column_stack((points[:, 2], -points[:, 1], points[:, 0]))
     return points.copy()
 
@@ -120,5 +134,9 @@ def camera_to_sofa_order(points: np.ndarray) -> np.ndarray:
     Returns:
         Reordered positions as a flat array.
     """
-    i_sorted_y = sorted(range(prm.nb_markers), key=lambda i: points[i, 1])
-    return points[i_sorted_y].flatten()
+    if prm.sort == "z":
+        i_sorted_z = sorted(range(prm.nb_markers), key=lambda i: points[i, 2])
+        return points[i_sorted_z].flatten()
+    else:  # sort by y
+        i_sorted_y = sorted(range(prm.nb_markers), key=lambda i: points[i, 1])
+        return points[i_sorted_y].flatten()

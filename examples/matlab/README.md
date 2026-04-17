@@ -2,13 +2,16 @@
 
 ## Dépendances
 
-Repose sur des modifications apportées à `emioapi/_depthcamera.py` :
+Repose sur des modifications apportées à `emioapi/_depthcamera.py`,
+`emioapi/emiocamera.py`, et 'emioapi/_positionestimation.py` pour :
 
-- Accès aux coordonnées brutes de la caméra (ajout de la variable `trackers_camera` 
+- Accès aux coordonnées brutes de la caméra (ajout de la variable `trackers_pos_image` 
 (pour le mode `"front"`, sans bruit de traitement)
 - Ajout d'une fonction `process_frame()` pour séparer l'acquisition de la caméra
   du traitement des données (pour des evenements dans les process). Mais
   `update()` reste fonctionnel en appelant `process_frame()` à l'intérieur.
+- projection de la position dans le plan (cf ce qu'Alexandre a fait) pour
+  réduire le bruit de la caméra (en mode `"plan"` uniquement, pour l'instant).
 
 ---
 
