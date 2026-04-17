@@ -1,6 +1,4 @@
-import os
 import json
-from time import sleep
 import time
 from enum import Enum
 
@@ -9,7 +7,7 @@ import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-from ._positionestimation import PositionEstimation, image_pixel_to_mm, CONFIG_FILENAME
+from ._positionestimation import PositionEstimation, CONFIG_FILENAME
 from emioapi._logging_config import logger
 
 DEFAULT_CAMERA_PARAMS = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
@@ -68,6 +66,7 @@ class DepthCamera:
     parameter = {}
     tracking = False
     trackers_pos = []
+    trackers_camera = []
     maskWindow = None
     frameWindow = None
     hsvWindow = None
@@ -124,6 +123,7 @@ class DepthCamera:
             return
 
         self.trackers_pos = []
+        self.trackers_camera = []
 
         if parameter:
             self.parameter = parameter
@@ -339,6 +339,7 @@ class DepthCamera:
                 areas = [cv.contourArea(cnt) for cnt in contours]
 
                 self.trackers_pos = []
+                self.trackers_camera = []
                 for i, a in enumerate(areas):
                     if a > self.parameter['area']:
                         x, y = compute_contour_center(contours[i])
@@ -347,6 +348,7 @@ class DepthCamera:
                         depth = compute_median_depth(contours[i], self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
                         worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
+                        self.trackers_camera.append([x, y, depth])
 
                         cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                         for frame in [self.hsvFrame, self.frame]:
