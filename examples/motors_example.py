@@ -37,6 +37,7 @@ def main(emio: EmioMotors, loops=1):
 
 
 if __name__ == "__main__":
+    emio_motors = None
     try:
         logger.info("Starting EMIO API test...")
         logger.info("Opening and configuring EMIO API...")
@@ -58,4 +59,5 @@ if __name__ == "__main__":
             logger.info("Emio connection closed.")
     except Exception as e:
         logger.exception(f"An error occurred: {e}")
-        emio_motors.close()
+        if emio_motors:
+            emio_motors.close()

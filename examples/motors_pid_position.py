@@ -1,7 +1,4 @@
 import numpy as np
-import matplotlib
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 import time
 import sys
 import os
@@ -77,27 +74,6 @@ def main():
 
     motors.close()
     print("Motors closed.")
-
-    # process data
-    measures = np.array(measures)
-    measures1 = measures[:nb_steps1] - init_angles
-    measures2 = measures[nb_steps1:] - init_angles
-    times = np.array(times)
-    times1 = times[:nb_steps1] - times[0]
-    times2 = times[nb_steps1:] - times[nb_steps1]
-    timesRef = times1 if len(times1) > len(times2) else times2
-    measuresRef = [target_angles[0] - init_angles[0]] * len(timesRef)
-
-    # Plot to compare the two responses
-    plt.figure()
-    plt.plot(timesRef, measuresRef, "-r", label="ref")
-    plt.plot(times1, measures1[:, 0], "--", label="PID 1")
-    plt.plot(times2, measures2[:, 0], "--", label="PID 2")
-    plt.xlabel("Time [s]")
-    plt.ylabel("Angle [rad]")
-    plt.title("Motor Position Control with Different PID Gains")
-    plt.legend()
-    plt.show()
 
 
 if __name__ == "__main__":
