@@ -4,24 +4,24 @@ import warnings
 import numpy as np
 
 import params as prm
-from simulink_bridge import SimulinkBridge
+from udp_bridge import UDPBridge
 
 
 def main():
-    """Standalone test loop for the Simulink bridge without a physical robot.
+    """Standalone test loop for the remote bridge without a physical robot.
 
     Replaces camera and motor data with random vectors, so the bridge can be
-    validated against a Simulink model without any hardware connected.
+    validated against a remote model without any hardware connected.
     """
     measure = np.zeros((prm.ny, 1))
     command = np.zeros((prm.nu, 1))
 
-    with SimulinkBridge(
+    with UDPBridge(
         send_size     = prm.ny + prm.nu,
         recv_size     = prm.nu,
-        simulink_ip   = prm.simulink_ip,
-        simulink_port = prm.simulink_port,
-        python_port   = prm.python_port,
+        remote_ip   = prm.remote_ip,
+        remote_port = prm.remote_port,
+        local_port   = prm.local_port,
         bind_port     = prm.bind_port,
         recv_timeout  = prm.recv_timeout,
     ) as bridge:
@@ -53,7 +53,7 @@ def main():
             measure    = np.random.rand(prm.ny, 1)
 
             # ------------------------------------------------------------------
-            # Simulink communication — compute next command
+            # Remote host communication — compute next command
             # ------------------------------------------------------------------
             data = np.vstack((measure, motors_pos))
             command, status = bridge.send_and_receive(data)

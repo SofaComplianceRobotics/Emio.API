@@ -7,7 +7,7 @@ import numpy as np
 from emioapi import EmioMotors
 
 import params as prm
-from simulink_bridge import SimulinkBridge
+from udp_bridge import UDPBridge, CommStatus
 
 # ------------------------------------------------------------------------------
 # Process
@@ -16,10 +16,10 @@ from simulink_bridge import SimulinkBridge
 def process_motors(shared_markers_pos: SynchronizedArray,
                    event_frame: Event,
                    event_measure: Event) -> None:
-    """Motor control loop bridging Simulink and the physical motors.
+    """Motor control loop bridging the remote controller and the physical motors.
 
     Waits for frame and measure events, reads motor positions and marker data,
-    then exchanges them with Simulink to get the next command. Runs until
+    then exchanges them with the remote host to get the next command. Runs until
     interrupted by a KeyboardInterrupt (Ctrl-C).
 
     Args:
@@ -32,12 +32,12 @@ def process_motors(shared_markers_pos: SynchronizedArray,
     measure = np.zeros((prm.ny, 1))
     command = np.zeros((prm.nu, 1))
 
-    with SimulinkBridge(
+    with UDPBridge(
         send_size     = prm.ny + prm.nu,
         recv_size     = prm.nu,
-        simulink_ip   = prm.simulink_ip,
-        simulink_port = prm.simulink_port,
-        python_port   = prm.python_port,
+        remote_ip   = prm.remote_ip,
+        remote_port = prm.remote_port,
+        local_port   = prm.local_port,
         bind_port     = prm.bind_port,
         recv_timeout  = prm.recv_timeout,
     ) as bridge:
@@ -78,10 +78,12 @@ def process_motors(shared_markers_pos: SynchronizedArray,
                 measure[:, 0] = shared_markers_pos[:]
 
             # ------------------------------------------------------------------
-            # Simulink communication — compute next command
+            # Remote host communication — compute next command
             # ------------------------------------------------------------------
             data            = np.vstack((measure, motors_pos))
             command, status = bridge.send_and_receive(data)
+            if status not in (CommStatus.OK, CommStatus.OK_NO_DELAY):
+                print(f"[{bridge.seq}] {status.value}")
 
 # ------------------------------------------------------------------------------
 # Helpers
