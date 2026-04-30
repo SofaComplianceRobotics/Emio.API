@@ -1,10 +1,27 @@
+import argparse
 import time
 import warnings
 
 import numpy as np
-
 import params as prm
 from udp_bridge import UDPBridge
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="UDP Bridge - Motor control")
+    p.add_argument("--fps",          default=prm.fps,          type=int)
+    p.add_argument("--nb_markers",   default=prm.nb_markers,   type=int)
+    p.add_argument("--side",         default=prm.side,         type=str,
+                   choices=["top", "front", "plan"])
+    p.add_argument("--sort",         default=prm.sort,         type=str,
+                   choices=["y", "z"])
+    p.add_argument("--remote_ip",    default=prm.remote_ip,    type=str)
+    p.add_argument("--remote_port",  default=prm.remote_port,  type=int)
+    p.add_argument("--local_port",   default=prm.local_port,   type=int)
+    p.add_argument("--bind_port",    default=prm.bind_port,    type=int)
+    p.add_argument("--recv_timeout", default=prm.recv_timeout, type=float)
+
+    return p.parse_args()
 
 
 def main():
@@ -13,25 +30,27 @@ def main():
     Replaces camera and motor data with random vectors, so the bridge can be
     validated against a remote model without any hardware connected.
     """
-    measure = np.zeros((prm.ny, 1))
+    args = parse_args()
+    ny = 3 * args.nb_markers
+    measure = np.zeros((ny, 1))
     command = np.zeros((prm.nu, 1))
 
     with UDPBridge(
-        send_size     = prm.ny + prm.nu,
+        send_size     = ny + prm.nu,
         recv_size     = prm.nu,
-        remote_ip   = prm.remote_ip,
-        remote_port = prm.remote_port,
-        local_port   = prm.local_port,
-        bind_port     = prm.bind_port,
-        recv_timeout  = prm.recv_timeout,
+        remote_ip   = args.remote_ip,
+        remote_port = args.remote_port,
+        local_port   = args.local_port,
+        bind_port     = args.bind_port,
+        recv_timeout  = args.recv_timeout,
     ) as bridge:
         bridge.handshake()
         t           = time.perf_counter()
-        dt_expected = 1.0 / prm.fps
+        dt_expected = 1.0 / args.fps
 
         while True:
             # ------------------------------------------------------------------
-            # Pace the loop to match prm.fps
+            # Pace the loop to match args.fps
             # ------------------------------------------------------------------
             while time.perf_counter() - t < dt_expected:
                 time.sleep(0.001)
@@ -50,7 +69,7 @@ def main():
             # Simulated measurements (random stand-in for camera + motors)
             # ------------------------------------------------------------------
             motors_pos = np.random.rand(prm.nu, 1)
-            measure    = np.random.rand(prm.ny, 1)
+            measure    = np.random.rand(ny, 1)
 
             # ------------------------------------------------------------------
             # Remote host communication — compute next command

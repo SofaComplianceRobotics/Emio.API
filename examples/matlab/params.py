@@ -14,7 +14,6 @@ bind_port    = 9090
 recv_timeout = 0.1
 
 # --- Fixed settings (DO NOT CHANGE) ---
-ny = 3 * nb_markers # number of measurements
 nu = 4 # number of actuators
 
 # camera settings

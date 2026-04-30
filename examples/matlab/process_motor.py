@@ -15,7 +15,8 @@ from udp_bridge import UDPBridge, CommStatus
 
 def process_motors(shared_markers_pos: SynchronizedArray,
                    event_frame: Event,
-                   event_measure: Event) -> None:
+                   event_measure: Event,
+                   args) -> None:
     """Motor control loop bridging the remote controller and the physical motors.
 
     Waits for frame and measure events, reads motor positions and marker data,
@@ -26,24 +27,26 @@ def process_motors(shared_markers_pos: SynchronizedArray,
         shared_markers_pos: Shared memory array holding marker positions.
         event_frame: Event set by the camera process at each new frame.
         event_measure: Event set when marker measurement is ready.
+        args: Parsed command-line arguments, used for UDP configuration.
     """
+    ny = 3 * args.nb_markers
     motors = setup_motors()
 
-    measure = np.zeros((prm.ny, 1))
+    measure = np.zeros((ny, 1))
     command = np.zeros((prm.nu, 1))
 
     with UDPBridge(
-        send_size     = prm.ny + prm.nu,
+        send_size     = ny + prm.nu,
         recv_size     = prm.nu,
-        remote_ip   = prm.remote_ip,
-        remote_port = prm.remote_port,
-        local_port   = prm.local_port,
-        bind_port     = prm.bind_port,
-        recv_timeout  = prm.recv_timeout,
+        remote_ip   = args.remote_ip,
+        remote_port = args.remote_port,
+        local_port   = args.local_port,
+        bind_port     = args.bind_port,
+        recv_timeout  = args.recv_timeout,
     ) as bridge:
         bridge.handshake()
         t           = time.perf_counter()
-        dt_expected = 1.0 / prm.fps
+        dt_expected = 1.0 / args.fps
 
         while True:
             # ------------------------------------------------------------------
