@@ -458,7 +458,7 @@ dev = [
 requires-dist = [
     { name = "dynamixelmotorsapi", git = "https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI?rev=release-v0.1.0" },
     { name = "numpy", specifier = "==1.26.4" },
-    { name = "opencv-python" },
+    { name = "opencv-python", specifier = ">=4.11.0.86" },
     { name = "pillow" },
     { name = "pyrealsense2", marker = "sys_platform != 'darwin'" },
     { name = "pyrealsense2-macosx", marker = "sys_platform == 'darwin'" },

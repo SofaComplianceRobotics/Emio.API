@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import socket
 import warnings
 import time
@@ -5,7 +6,6 @@ from enum import Enum
 import multiprocessing
 from multiprocessing.sharedctypes import SynchronizedArray
 from multiprocessing.synchronize import Event
-
 import numpy as np
 
 from emioapi import EmioMotors, EmioCamera
@@ -14,6 +14,40 @@ import emioapi.udp_bridge.udp_bridge_params as prm
 #---------------------
 #region  UDP
 #---------------------
+@dataclass
+class UDPBridgeConfig:
+    # FPS and Marker Settings
+    fps: float
+    nb_markers: int
+    side: str  # "top" or "front"
+    sort: str  # "y" or "z", only for front camera
+
+    # UDP settings
+    remote_ip: str
+    remote_port: int
+    local_port: int
+    bind_port: int
+    recv_timeout: float
+
+    def __post_init__(self):
+        self.fps = prm.fps
+        self.nb_markers = prm.nb_markers
+        self.side = prm.side
+        self.sort = prm.sort
+        self.remote_ip = prm.remote_ip
+        self.remote_port = prm.remote_port
+        self.local_port = prm.local_port
+        self.bind_port = prm.bind_port
+        # Camera settings
+        self.depth = prm.depth
+        self.plane_d = prm.plane_d
+        self.plane_n = prm.plane_n
+        self.front2top_offset = prm.front2top_offset
+        ## ny and nu should not be changed
+        self.ny = 3 * self.nb_markers # number of measurements
+        self.nu = 4 # number of actuators
+
+    
 class CommStatus(Enum):
     """Status returned by :meth:`UDPBridge.send_and_receive`.
 
@@ -278,7 +312,8 @@ class UDPBridge:
 
 def process_motors(shared_markers_pos: SynchronizedArray,
                    event_frame: Event,
-                   event_measure: Event) -> None:
+                   event_measure: Event,
+                   config: UDPBridgeConfig) -> None:
     """Motor control loop bridging the remote controller and the physical motors.
 
     Waits for frame and measure events, reads motor positions and marker data,
@@ -292,21 +327,21 @@ def process_motors(shared_markers_pos: SynchronizedArray,
     """
     motors = setup_motors()
 
-    measure = np.zeros((prm.ny, 1))
-    command = np.zeros((prm.nu, 1))
+    measure = np.zeros((config.ny, 1))
+    command = np.zeros((config.nu, 1))
 
     with UDPBridge(
-        send_size     = prm.ny + prm.nu,
-        recv_size     = prm.nu,
-        remote_ip   = prm.remote_ip,
-        remote_port = prm.remote_port,
-        local_port   = prm.local_port,
-        bind_port     = prm.bind_port,
-        recv_timeout  = prm.recv_timeout,
+        send_size     = config.ny + config.nu,
+        recv_size     = config.nu,
+        remote_ip   = config.remote_ip,
+        remote_port = config.remote_port,
+        local_port   = config.local_port,
+        bind_port     = config.bind_port,
+        recv_timeout  = config.recv_timeout
     ) as bridge:
         bridge.handshake()
         t           = time.perf_counter()
-        dt_expected = 1.0 / prm.fps
+        dt_expected = 1.0 / config.fps
 
         while True:
             # ------------------------------------------------------------------
@@ -394,7 +429,8 @@ def get_motors_position(motors: EmioMotors) -> np.ndarray:
 #---------------------
 def process_camera(shared_markers_pos: SynchronizedArray,
                    event_frame: Event,
-                   event_measure: Event) -> None:
+                   event_measure: Event,
+                   config: UDPBridgeConfig) -> None:
     """Main camera loop: grab frames, track markers, and update shared state.
 
     Sets ``event_frame`` at each new frame and ``event_measure`` once the
@@ -406,29 +442,28 @@ def process_camera(shared_markers_pos: SynchronizedArray,
         event_frame: Event set at each new camera frame.
         event_measure: Event set once marker data is ready.
     """
-    camera = setup_camera()
-    pos = np.zeros((prm.ny, 1))
+    camera = setup_camera(config)
+    pos = np.zeros((config.ny, 1))
 
     while True:
-        # get frame from camera
-        ret = camera.get_frame()
-        event_frame.set()
-        if ret:
-            pos = process_frame(camera, pos)
+        if camera.is_running:
+            ret = camera.get_frame()
+            event_frame.set()
+            if ret:
+                pos = process_frame(camera, pos, config)
 
-        with shared_markers_pos.get_lock():
-            shared_markers_pos[:] = pos.flatten()
-        event_measure.set()
-
-        k = cv.waitKey(1)
-        if k == ord('q'):
-            camera.close()
-            break
+            with shared_markers_pos.get_lock():
+                shared_markers_pos[:] = pos.flatten()
+            event_measure.set()
+        else:
+            print("Camera is not running.")
+            time.sleep(1)
+            continue
 
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
-def setup_camera() -> EmioCamera:
+def setup_camera(config: UDPBridgeConfig) -> EmioCamera:
     """Initialise and open the depth camera from ``params``.
 
     Returns:
@@ -439,14 +474,14 @@ def setup_camera() -> EmioCamera:
         track_markers=True,
         compute_point_cloud=False
         )
-    camera.fps = prm.fps
+    camera.fps = config.fps
     camera.depth_min = 0
     camera.depth_max = 1000
     camera.open()
     return camera
 
 # -------------------------------------------------------
-def process_frame(camera: EmioCamera, last_pos: np.ndarray) -> np.ndarray:
+def process_frame(camera: EmioCamera, last_pos: np.ndarray, config: UDPBridgeConfig) -> np.ndarray:
     """Extract marker positions from the current frame.
 
     Returns ``last_pos`` unchanged if the expected number of markers is not
@@ -460,34 +495,34 @@ def process_frame(camera: EmioCamera, last_pos: np.ndarray) -> np.ndarray:
         Marker positions as a column vector, shape ``(ny, 1)``.
     """
     camera.process_frame()
-    if len(camera.trackers_pos) == prm.nb_markers:
-        if prm.side == "top":
-            pos = np.array(camera.trackers_pos).reshape(prm.nb_markers, 3).copy()
+    if len(camera.trackers_pos) == config.nb_markers:
+        if config.side == "top":
+            pos = np.array(camera.trackers_pos).reshape(config.nb_markers, 3).copy()
             pos = pos.astype(np.float64)
             return pos
 
-        elif prm.side == "front":
-            p = np.array(camera.trackers_pos_image).reshape(prm.nb_markers, 3).copy()
+        elif config.side == "front":
+            p = np.array(camera.trackers_pos_image).reshape(config.nb_markers, 3).copy()
             p = p.astype(np.float64)
-            p = pixel_to_mm(p, prm.depth)
-            p = camera_to_sofa_order(p)
+            p = pixel_to_mm(p, config.depth, config)
+            p = camera_to_sofa_order(p, config)
             return p.reshape((-1, 1))
 
-        elif prm.side == "plan":
+        elif config.side == "plan":
             trackers_projected = []
             for pixel_pos in camera.trackers_pos_image:
                 result = camera._camera.position_estimator.camera_image_to_simulation_plane_intersection(
-                    pixel_pos[0],pixel_pos[1],prm.plane_n, prm.plane_d)
+                    pixel_pos[0],pixel_pos[1],config.plane_n, config.plane_d)
                 trackers_projected.append(result)
-            p = np.array(trackers_projected).reshape(prm.nb_markers, 3).copy()
+            p = np.array(trackers_projected).reshape(config.nb_markers, 3).copy()
             p = p.astype(np.float64)
-            p = camera_to_sofa_order(p)
+            p = camera_to_sofa_order(p, config)
             return p.reshape((-1, 1))
 
     return last_pos
 
 # -------------------------------------------------------
-def pixel_to_mm(points: np.ndarray, depth: float) -> np.ndarray:
+def pixel_to_mm(points: np.ndarray, depth: float, config:UDPBridgeConfig) -> np.ndarray:
     """Project pixel coordinates to millimetres using pinhole intrinsics.
 
     Args:
@@ -501,12 +536,12 @@ def pixel_to_mm(points: np.ndarray, depth: float) -> np.ndarray:
     fx, fy = 382.605, 382.605
     points[:, 0] = ((points[:, 0] - ppx) / fx) * depth
     points[:, 1] = ((points[:, 1] - ppy) / fy) * depth
-    points += prm.front2top_offset
+    points += config.front2top_offset
     points = np.column_stack((points[:, 2], -points[:, 1], points[:, 0]))
     return points.copy()
 
 # -------------------------------------------------------
-def camera_to_sofa_order(points: np.ndarray) -> np.ndarray:
+def camera_to_sofa_order(points: np.ndarray, config: UDPBridgeConfig) -> np.ndarray:
     """Reorder markers by ascending y-coordinate (SOFA convention).
 
     Args:
@@ -515,17 +550,21 @@ def camera_to_sofa_order(points: np.ndarray) -> np.ndarray:
     Returns:
         Reordered positions as a flat array.
     """
-    if prm.sort == "z":
-        i_sorted_z = sorted(range(prm.nb_markers), key=lambda i: points[i, 2])
+    if config.sort == "z":
+        i_sorted_z = sorted(range(config.nb_markers), key=lambda i: points[i, 2])
         return points[i_sorted_z].flatten()
     else:  # sort by y
-        i_sorted_y = sorted(range(prm.nb_markers), key=lambda i: points[i, 1])
+        i_sorted_y = sorted(range(config.nb_markers), key=lambda i: points[i, 1])
         return points[i_sorted_y].flatten()
     
 
-def main():
+#---------------------
+#region  Start UDP bridge
+#---------------------
+def startUDPbridge(config: UDPBridgeConfig):
+
     # shared variables
-    shared_markers_pos = multiprocessing.Array("d", prm.ny * [0.])
+    shared_markers_pos = multiprocessing.Array("d", config.ny * [0.])
 
     # shared event
     event_frame = multiprocessing.Event()
@@ -533,10 +572,10 @@ def main():
 
     # Create processes
     p1 = multiprocessing.Process(target=process_camera, args=(
-        shared_markers_pos, event_frame, event_measure))
+        shared_markers_pos, event_frame, event_measure, config))
 
     p2 = multiprocessing.Process(target=process_motors, args=(
-        shared_markers_pos, event_frame, event_measure))
+        shared_markers_pos, event_frame, event_measure, config))
 
 
     p1.start()
@@ -551,7 +590,3 @@ def main():
 
         p1.join()
         p2.join()
-
-
-if __name__ == "__main__":
-    main()
