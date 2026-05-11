@@ -28,6 +28,8 @@ class UDPBridgeConfig:
     local_port: int
     bind_port: int
     recv_timeout: float
+    camera_only: bool = False
+    motors_only: bool = False
 
     def __post_init__(self):
         self.fps = prm.fps if self.fps is None else self.fps
@@ -39,6 +41,8 @@ class UDPBridgeConfig:
         self.local_port = prm.local_port if self.local_port is None else self.local_port
         self.bind_port = prm.bind_port if self.bind_port is None else self.bind_port
         self.recv_timeout = prm.recv_timeout if self.recv_timeout is None else self.recv_timeout
+        self.camera_only = prm.camera_only if self.camera_only is None else self.camera_only
+        self.motors_only = prm.motors_only if self.motors_only is None else self.motors_only
         # Camera settings
         self.depth = prm.depth
         self.plane_d = prm.plane_d
@@ -329,7 +333,8 @@ def process_motors(shared_markers_pos: SynchronizedArray,
         event_frame: Event set by the camera process at each new frame.
         event_measure: Event set when marker measurement is ready.
     """
-    motors = setup_motors()
+    if not config.camera_only:
+        motors = setup_motors()
 
     measure = np.zeros((config.ny, 1))
     command = np.zeros((config.nu, 1))
@@ -347,13 +352,16 @@ def process_motors(shared_markers_pos: SynchronizedArray,
         t = time.perf_counter()
         dt_expected = 1.0 / config.fps
 
+        if config.camera_only and config.motors_only:
+            print("Warning: both camera_only and motors_only are True. The bridge will run but no data will be sent to the remote host.")
 
         while True:
             # ------------------------------------------------------------------
             # Wait for new frame and measure events
             # ------------------------------------------------------------------
-            event_frame.wait()
-            event_frame.clear()
+            if not config.motors_only:
+                event_frame.wait()
+                event_frame.clear()
 
             dt_actual = time.perf_counter() - t
             t = time.perf_counter()
@@ -368,17 +376,22 @@ def process_motors(shared_markers_pos: SynchronizedArray,
             # ------------------------------------------------------------------
             # Read motors position and send command
             # ------------------------------------------------------------------
-            motors_pos = get_motors_position(motors) # read current motors position to send to remote host
-            send_motors_command(motors, command) # apply the previous received command from remote to motors
-
-            event_measure.wait()
-            event_measure.clear()
+            if config.camera_only:
+                motors_pos = np.zeros((config.nu, 1))
+            else:    
+                motors_pos = get_motors_position(motors) # read current motors position to send to remote host
+                send_motors_command(motors, command) # apply the previous received command from remote to motors
 
             # ------------------------------------------------------------------
             # Read shared marker data
             # ------------------------------------------------------------------
-            with shared_markers_pos.get_lock():
-                measure[:, 0] = shared_markers_pos[:]
+            if not config.motors_only:
+                event_measure.wait()
+                event_measure.clear()
+                with shared_markers_pos.get_lock():
+                    measure[:, 0] = shared_markers_pos[:]
+            else:
+                measure = np.zeros((config.ny, 1))
 
             # ------------------------------------------------------------------
             # Remote host communication — compute next command
@@ -447,6 +460,10 @@ def process_camera(shared_markers_pos: SynchronizedArray,
         event_frame: Event set at each new camera frame.
         event_measure: Event set once marker data is ready.
     """
+    if config.motors_only:
+        print("Camera process is running in motors_only mode: it will not read the camera or update the shared marker positions.")
+        return
+
     camera = setup_camera(config)
     pos = np.zeros((config.ny, 1))
 

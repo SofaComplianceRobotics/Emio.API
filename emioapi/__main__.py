@@ -55,7 +55,9 @@ def startUDP(args):
         remote_port = args.remote_port,
         local_port = args.local_port,
         bind_port = args.bind_port,
-        recv_timeout = args.recv_timeout
+        recv_timeout = args.recv_timeout,
+        camera_only = args.camera_only,
+        motors_only = args.motors_only
     )
 
     print("-"*50)
@@ -104,6 +106,8 @@ def parse_args():
     parser_udp.add_argument("--local-port",    type=int, default=prm.local_port, help="Local Port")
     parser_udp.add_argument("--bind-port",      type=int, default=prm.bind_port, help="Bind port for local communication")
     parser_udp.add_argument("--recv-timeout",  type=float, default=prm.recv_timeout, help="Receive timeout in seconds")
+    parser_udp.add_argument("--camera-only",  action=argparse.BooleanOptionalAction, default=False, help="Only send the markers position without waiting for the motors command. The motors positions will be sent as 0. And no command will be applied to the motors.")
+    parser_udp.add_argument("--motors-only",  action=argparse.BooleanOptionalAction, default=False, help="Only send the motors position without waiting for the camera data")
 
     try:
         # Parse the arguments
