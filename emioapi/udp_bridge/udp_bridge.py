@@ -151,7 +151,10 @@ class UDPBridge:
         Args:
             handshake_timeout: Per-attempt socket timeout in seconds.
         """
+        print("-"*50)
+        print(f"UDP bridge listening port {self._sock_recv.getsockname()[1]} and sending commands to {self.remote_addr[0]}:{self.remote_addr[1]} through port {self._sock_send.getsockname()[1]}.\n")
         print("  -> Start the Remote host now (waiting for handshake...)")
+        print("-"*50)
 
         payload    = np.zeros(1 + self.send_size, dtype=np.float64)
         payload[0] = -1.0
@@ -340,8 +343,9 @@ def process_motors(shared_markers_pos: SynchronizedArray,
         recv_timeout  = config.recv_timeout
     ) as bridge:
         bridge.handshake()
-        t           = time.perf_counter()
+        t = time.perf_counter()
         dt_expected = 1.0 / config.fps
+
 
         while True:
             # ------------------------------------------------------------------
