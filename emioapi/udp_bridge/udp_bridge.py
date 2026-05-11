@@ -30,14 +30,15 @@ class UDPBridgeConfig:
     recv_timeout: float
 
     def __post_init__(self):
-        self.fps = prm.fps
-        self.nb_markers = prm.nb_markers
-        self.side = prm.side
-        self.sort = prm.sort
-        self.remote_ip = prm.remote_ip
-        self.remote_port = prm.remote_port
-        self.local_port = prm.local_port
-        self.bind_port = prm.bind_port
+        self.fps = prm.fps if self.fps is None else self.fps
+        self.nb_markers = prm.nb_markers if self.nb_markers is None else self.nb_markers
+        self.side = prm.side if self.side is None else self.side
+        self.sort = prm.sort if self.sort is None else self.sort
+        self.remote_ip = prm.remote_ip if self.remote_ip is None else self.remote_ip
+        self.remote_port = prm.remote_port if self.remote_port is None else self.remote_port
+        self.local_port = prm.local_port if self.local_port is None else self.local_port
+        self.bind_port = prm.bind_port if self.bind_port is None else self.bind_port
+        self.recv_timeout = prm.recv_timeout if self.recv_timeout is None else self.recv_timeout
         # Camera settings
         self.depth = prm.depth
         self.plane_d = prm.plane_d
@@ -154,7 +155,6 @@ class UDPBridge:
         print("-"*50)
         print(f"UDP bridge listening port {self._sock_recv.getsockname()[1]} and sending commands to {self.remote_addr[0]}:{self.remote_addr[1]} through port {self._sock_send.getsockname()[1]}.\n")
         print("  -> Start the Remote host now (waiting for handshake...)")
-        print("-"*50)
 
         payload    = np.zeros(1 + self.send_size, dtype=np.float64)
         payload[0] = -1.0
@@ -166,6 +166,7 @@ class UDPBridge:
             try:
                 self._sock_recv.recvfrom((self.recv_size + 1) * 8)
                 print("  Handshake OK - ready!\n")
+                print("-"*50)
                 break
             except socket.timeout:
                 pass
@@ -355,8 +356,8 @@ def process_motors(shared_markers_pos: SynchronizedArray,
             event_frame.clear()
 
             dt_actual = time.perf_counter() - t
-            t         = time.perf_counter()
-            if abs(dt_actual - dt_expected) > 0.1 * dt_expected:
+            t = time.perf_counter()
+            if (dt_actual - dt_expected) > 0.1 * dt_expected:
                 warnings.warn(
                     f"[{bridge.seq:04d}] Timing drift: "
                     f"dt={dt_actual * 1000:.1f}ms, "
@@ -367,8 +368,8 @@ def process_motors(shared_markers_pos: SynchronizedArray,
             # ------------------------------------------------------------------
             # Read motors position and send command
             # ------------------------------------------------------------------
-            motors_pos = get_motors_position(motors)
-            send_motors_command(motors, command)
+            motors_pos = get_motors_position(motors) # read current motors position to send to remote host
+            send_motors_command(motors, command) # apply the previous received command from remote to motors
 
             event_measure.wait()
             event_measure.clear()
@@ -566,6 +567,15 @@ def camera_to_sofa_order(points: np.ndarray, config: UDPBridgeConfig) -> np.ndar
 #region  Start UDP bridge
 #---------------------
 def startUDPbridge(config: UDPBridgeConfig):
+    """
+    Start a UDP bridge configured with the parameters found in args. 
+
+    A handshake is done at the beginning to ensure that the remote host is ready to receive data. It shold follow the same protocol describded below with dummy data.
+    
+    The protocol is as follows:
+    - The bridge sends a packet made of a sequence number and followed by the marker(s) position(s) and the four motors posiitons
+    - The remote host should reply with a packet containing the four motors positions to send to the Emio.
+    """
 
     # shared variables
     shared_markers_pos = multiprocessing.Array("d", config.ny * [0.])

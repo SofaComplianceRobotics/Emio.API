@@ -2,7 +2,7 @@ import sys
 
 def calibrate():
     """
-    Calibrate the camera of the first Emio camera found
+    Calibrate the camera of the first Emio camera found. For more informations about the calibration process, please refer to the EmioCamera.calibrate() method documentation.
     """
     import emioapi
     from emioapi._logging_config import logger 
@@ -34,19 +34,30 @@ def calibrate():
 
 def startUDP(args):
     """
-    Start a UDP bridge configured with the parameters found in params
+    Start a UDP bridge configured with the parameters found in args. 
+
+    A handshake is done at the beginning to ensure that the remote host is ready to receive data. It shold follow the same protocol describded below with dummy data.
+
+    The sequence number is a simple counter that is incremented at each frame. It is used by the process_motors process to make sure that the remote is synchronized.
+    
+    The protocol is as follows:
+    - The bridge sends a packet made of a sequence number and followed by the marker(s) position(s) and the four motors posiitons
+    - The remote host should reply with a packet containing the four motors positions to send to the Emio.
+
     """
     import emioapi.udp_bridge.udp_bridge as udpBdrige
-    config = udpBdrige.UDPBridgeConfig(args.fps,
-                                args.nb_markers,
-                                args.side,
-                                args.sort,
-                                args.remote_ip,
-                                args.remote_port,
-                                args.local_port,
-                                args.bind_port,
-                                args.recv_timeout)
-    
+    config = udpBdrige.UDPBridgeConfig(
+        fps = args.fps,
+        nb_markers = args.nb_markers,
+        side = args.side,
+        sort = args.sort,
+        remote_ip = args.remote_ip,
+        remote_port = args.remote_port,
+        local_port = args.local_port,
+        bind_port = args.bind_port,
+        recv_timeout = args.recv_timeout
+    )
+
     print("-"*50)
     print(f"Starting UDP bridge with config: {config}")
     print("-"*50)
@@ -74,22 +85,25 @@ def parse_args():
     # --- Subparser for 'calibrate' command ---
     parser_calibrate = subparsers.add_parser("calibrate", help="Calibrate the Emio camera.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser_calibrate.description = calibrate.__doc__
 
 
     # --- Subparser for 'startUDP' command ---
     parser_udp = subparsers.add_parser("startUDP", help="Start a UDP bridge for motor/camera data.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
+    parser_udp.description = startUDP.__doc__
+    
     # Add the specific arguments needed for startUDP here
     parser_udp.add_argument("--fps",       type=int, default=prm.fps, help="Frames per second (e.g., 30)")
-    parser_udp.add_argument("--nb_markers",  type=int, default=prm.nb_markers, help="Number of markers to process")
+    parser_udp.add_argument("--nb-markers",  type=int, default=prm.nb_markers, help="Number of markers to process")
     parser_udp.add_argument("--side",       choices=["top", "front", "plan"], default=prm.side, help="Camera side view")
     parser_udp.add_argument("--sort",        choices=["y", "z"], default=prm.sort, help="Sorting axis")
-    parser_udp.add_argument("--remote_ip",    type=str, default=prm.remote_ip, help="Remote IP address")
-    parser_udp.add_argument("--remote_port",  type=int, default=prm.remote_port, help="Remote Port")
-    parser_udp.add_argument("--local_port",    type=int, default=prm.local_port, help="Local Port")
-    parser_udp.add_argument("--bind_port",      type=int, default=prm.bind_port, help="Bind port for local communication")
-    parser_udp.add_argument("--recv_timeout",  type=float, default=prm.recv_timeout, help="Receive timeout in seconds")
+    parser_udp.add_argument("--remote-ip",    type=str, default=prm.remote_ip, help="Remote IP address")
+    parser_udp.add_argument("--remote-port",  type=int, default=prm.remote_port, help="Remote Port")
+    parser_udp.add_argument("--local-port",    type=int, default=prm.local_port, help="Local Port")
+    parser_udp.add_argument("--bind-port",      type=int, default=prm.bind_port, help="Bind port for local communication")
+    parser_udp.add_argument("--recv-timeout",  type=float, default=prm.recv_timeout, help="Receive timeout in seconds")
 
     try:
         # Parse the arguments
