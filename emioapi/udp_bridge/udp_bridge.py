@@ -396,7 +396,7 @@ def process_motors(shared_markers_pos: SynchronizedArray,
             # ------------------------------------------------------------------
             # Remote host communication — compute next command
             # ------------------------------------------------------------------
-            data            = np.vstack((measure, motors_pos))
+            data = np.vstack((motors_pos, measure))
             command, status = bridge.send_and_receive(data)
             if status not in (CommStatus.OK, CommStatus.OK_NO_DELAY):
                 print(f"[{bridge.seq}] {status.value}")
@@ -590,8 +590,8 @@ def startUDPbridge(config: UDPBridgeConfig):
     A handshake is done at the beginning to ensure that the remote host is ready to receive data. It shold follow the same protocol describded below with dummy data.
     
     The protocol is as follows:
-    - The bridge sends a packet made of a sequence number and followed by the marker(s) position(s) and the four motors posiitons
-    - The remote host should reply with a packet containing the four motors positions to send to the Emio.
+    - The bridge sends a packet made of a sequence number, the four motors positions and followed by the marker(s) position(s)
+    - The remote host should reply with a packet containing the four motors positions to send to the Emio robot.
     """
 
     # shared variables

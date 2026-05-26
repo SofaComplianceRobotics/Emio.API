@@ -36,13 +36,13 @@ def startUDP(args):
     """
     Start a UDP bridge configured with the parameters found in args. 
 
-    A handshake is done at the beginning to ensure that the remote host is ready to receive data. It shold follow the same protocol describded below with dummy data.
+    A handshake is done at the beginning to ensure that the remote host is ready to receive data. It should follow the same protocol describded below with dummy data.
 
     The sequence number is a simple counter that is incremented at each frame. It is used by the process_motors process to make sure that the remote is synchronized.
     
     The protocol is as follows:
-    - The bridge sends a packet made of a sequence number and followed by the marker(s) position(s) and the four motors posiitons
-    - The remote host should reply with a packet containing the four motors positions to send to the Emio.
+    - The bridge sends a packet made of a sequence number, the four motors positions and followed by the marker(s) position(s) (x, y, z)
+    - The remote host should reply with a packet containing the four motors positions to send to the Emio robot.
 
     """
     import emioapi.udp_bridge.udp_bridge as udpBdrige
