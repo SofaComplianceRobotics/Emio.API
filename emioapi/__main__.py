@@ -99,7 +99,7 @@ def parse_args():
     # Add the specific arguments needed for startUDP here
     parser_udp.add_argument("--fps",       type=int, default=prm.fps, help="Frames per second (e.g., 30)")
     parser_udp.add_argument("--nb-markers",  type=int, default=prm.nb_markers, help="Number of markers to process")
-    parser_udp.add_argument("--side",       choices=["top", "front", "plan"], default=prm.side, help="Camera side view")
+    parser_udp.add_argument("--side",       choices=["top", "front", "plane"], default=prm.side, help="Camera side view")
     parser_udp.add_argument("--sort",        choices=["y", "z"], default=prm.sort, help="Sorting axis")
     parser_udp.add_argument("--remote-ip",    type=str, default=prm.remote_ip, help="Remote IP address")
     parser_udp.add_argument("--remote-port",  type=int, default=prm.remote_port, help="Remote Port")

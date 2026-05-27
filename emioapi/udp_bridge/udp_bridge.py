@@ -530,7 +530,7 @@ def process_frame(camera: EmioCamera, last_pos: np.ndarray, config: UDPBridgeCon
             p = camera_to_sofa_order(p, config)
             return p.reshape((-1, 1))
 
-        elif config.side == "plan":
+        elif config.side == "plane":
             trackers_projected = []
             for pixel_pos in camera.trackers_pos_image:
                 result = camera._camera.position_estimator.camera_image_to_simulation_plane_intersection(

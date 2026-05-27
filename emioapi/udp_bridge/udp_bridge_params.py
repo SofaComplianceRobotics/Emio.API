@@ -3,7 +3,7 @@ import numpy as np
 # --- Configurable settings ---
 fps = 30
 nb_markers = 1
-side = "plan"  # "top", "front"
+side = "plane"  # "top", "front", "plane"
 sort = "y"  # "y" or "z", only for front camera
 
 # UDP settings
