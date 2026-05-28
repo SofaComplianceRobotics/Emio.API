@@ -1,4 +1,29 @@
-import sys
+"""
+## Emio API Tools
+
+This module provides command-line tools for working with Emio devices, including camera 
+calibration and starting a UDP bridge for real-time communication between the Emio robot 
+and a remote host (e.g., Simulink).
+
+To use these tools, run the following command in your terminal:
+```bash
+python -m emioapi <command> [options]
+```
+### Available Commands
+- `calibrate`: Calibrate the Emio camera. This command will open the camera feed
+    and allow you to perform the calibration process. The camera will be automatically closed after calibration.
+- `startUDP`: Start a UDP bridge for motor/camera data. 
+    This command will launch a UDP bridge that sends the camera's markers and motors positions and receives motor commands from a remote host. 
+    The bridge can be configured with various options such as FPS, number of markers, remote IP/port, etc.
+
+You can run each command with the `--help` flag to see the specific options available for that command. For example:
+```bash
+python -m emioapi --help
+python -m emioapi calibrate --help
+python -m emioapi startUDP --help
+```
+
+"""
 
 def calibrate():
     """
@@ -34,7 +59,7 @@ def calibrate():
 
 def startUDP(args):
     """
-    Start a UDP bridge configured with the parameters found in args. 
+    Start a UDP bridge configured with the parameters found in args or will default to `emioapi/udpbridge/udpbridge_params.py`.
 
     A handshake is done at the beginning to ensure that the remote host is ready to receive data. It should follow the same protocol describded below with dummy data.
 
@@ -45,7 +70,7 @@ def startUDP(args):
     - The remote host should reply with a packet containing the four motors positions to send to the Emio robot.
 
     """
-    import emioapi.udp_bridge.udp_bridge as udpBdrige
+    import emioapi.udpbridge.udpbridge as udpBdrige
     config = udpBdrige.UDPBridgeConfig(
         fps = args.fps,
         nb_markers = args.nb_markers,
@@ -67,10 +92,10 @@ def startUDP(args):
     udpBdrige.startUDPbridge(config)
 
 
-def parse_args():
+def _parse_args():
     
     import argparse
-    import emioapi.udp_bridge.udp_bridge_params as prm
+    import emioapi.udpbridge.udpbridgeparams as prm
 
     p = argparse.ArgumentParser(
         description="Emio API tools for Emio",
@@ -133,7 +158,7 @@ def parse_args():
 
 if __name__ == "__main__":
     try:
-        args = parse_args()
+        args = _parse_args()
     except Exception as e:
         import traceback
         print(f"An error happened: {traceback.format_exc()}")

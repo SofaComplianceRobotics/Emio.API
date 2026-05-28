@@ -36,6 +36,21 @@ emio.printStatus() # Print the status of the robot
 emio.disconnect()  # Close the connection to the robot
 ```
 
+### UDP Bridge
+To use the UDP bridge, you can directly call the tool: 
+
+```bash
+python -m emioapi startUDP
+```
+
+This will start a UDP bridge that will listen and send data according to the parameters in file [`emioapi/udp_bridge/udp_bridge_params.py`](./emioapi/udp_bridge/udp_bridge_params.py)
+
+You also have options that you can set at the call. List them using: 
+```bash
+python -m emioapi startUDP -h
+```
+
+
 ## For Developers
 The documentation is generated using [pydoc-markdown](https://pypi.org/project/pydoc-markdown/). To generate the documentation, you need to install `pydoc-markdown`:
 

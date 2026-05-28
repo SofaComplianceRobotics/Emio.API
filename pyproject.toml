@@ -39,7 +39,8 @@ type = "python"
 type = "filter"
 skip_empty_modules = true
 exclude_private = true
-expression = "not name.startswith('_') and '_' not in obj.location.filename and default()"
+exclude_special = false
+expression = "(not '_' in obj.location.filename and default()) or ('__main__' in obj.location.filename and default())"
 
 [[tool.pydoc-markdown.processors]]
 type="smart"
@@ -50,7 +51,7 @@ type="crossref"
 [tool.pydoc-markdown.renderer]
 type = "markdown"
 filename = "emio-api.md"
-descriptive_class_title = false
+descriptive_class_title = "$ Class"
 descriptive_module_title = false
 render_page_title = true
 render_module_header = false
@@ -59,7 +60,7 @@ add_full_prefix = false
 insert_header_anchors = false
 classdef_code_block = true
 signature_code_block = true
-signature_in_header = true
+signature_in_header = false
 code_headers = false
 use_fixed_header_levels = true
 render_toc = false
@@ -78,4 +79,5 @@ dynamixelmotorsapi = { git = "https://github.com/SofaComplianceRobotics/Dynamixe
 [dependency-groups]
 dev = [
     "matplotlib>=3.10.8",
+    "pydoc-markdown"
 ]
