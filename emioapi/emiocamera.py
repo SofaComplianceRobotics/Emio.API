@@ -61,6 +61,7 @@ class EmioCamera:
     _running: bool = False
     _parameter: dict = None
     _trackers_pos: list = []
+    _trackers_pos_image: list = []
     _point_cloud: np.ndarray = None
     _hsv_frame: np.ndarray = None
     _mask_frame: np.ndarray = None
@@ -258,6 +259,19 @@ class EmioCamera:
         with self._lock:
             if self._tracking:
                 return self._trackers_pos
+            else:
+                return []
+
+    @property
+    def trackers_pos_image(self) -> list:
+        """
+        Get the positions of the trackers in the image frame.
+        Returns:
+            list: The positions of the trackers in the image frame as a list of lists.
+        """
+        with self._lock:
+            if self._tracking:
+                return self._trackers_pos_image
             else:
                 return []
 
@@ -462,7 +476,17 @@ class EmioCamera:
             Update the camera frames and tracking elements (markers and point cloud)
         """
         if self._camera is not None:
-            self._camera.update()
+            if self.get_frame():
+                self.process_frame()
+
+    def get_frame(self) -> bool:
+        if self._camera is not None:
+            return self._camera.get_frame()
+        return False
+
+    def process_frame(self):
+        if self._camera is not None:
+            self._camera.process_frame()
             with self._lock:
                 self._hsv_frame = self._camera.hsvFrame
                 self._mask_frame = self._camera.maskFrame
@@ -471,6 +495,7 @@ class EmioCamera:
                     for p_camera in self._camera.trackers_pos:
                         p_emio = [p_camera[0], p_camera[1], p_camera[2], 0, 0, 0, 1]
                         self._trackers_pos.append(p_emio[0:3])
+                    self._trackers_pos_image = self._camera.trackers_pos_image.copy()
                     logger.debug(f"Trackers positions in camera frame: {self._camera.trackers_pos}, converted to Emio frame: {self._trackers_pos}")
                 if self._compute_point_cloud:
                         self._point_cloud = self._camera.point_cloud

@@ -1,6 +1,4 @@
-import os
 import json
-from time import sleep
 import time
 from enum import Enum
 
@@ -9,7 +7,7 @@ import cv2 as cv
 import pyrealsense2 as rs
 
 from ._camerafeedwindow import CameraFeedWindow
-from ._positionestimation import PositionEstimation, image_pixel_to_mm, CONFIG_FILENAME
+from ._positionestimation import PositionEstimation, CONFIG_FILENAME
 from emioapi._logging_config import logger
 
 DEFAULT_CAMERA_PARAMS = {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
@@ -68,6 +66,7 @@ class DepthCamera:
     parameter = {}
     tracking = False
     trackers_pos = []
+    trackers_pos_image = []
     maskWindow = None
     frameWindow = None
     hsvWindow = None
@@ -77,6 +76,7 @@ class DepthCamera:
     maskFrame = None
     frame: np.ndarray = None
     depth_frame: np.ndarray = None
+    depth_rsframe: np.ndarray = None
     depth_max = 430
     depth_min = 2
     calibration_status = CalibrationStatusEnum.NOT_CALIBRATED
@@ -123,6 +123,7 @@ class DepthCamera:
             return
 
         self.trackers_pos = []
+        self.trackers_pos_image = []
 
         if parameter:
             self.parameter = parameter
@@ -290,19 +291,24 @@ class DepthCamera:
         color_frame = frames.get_color_frame()
 
         if not depth_frame or not color_frame:
-            return False, color_frame, depth_frame
+            return False
 
         # Convert images to numpy arrays
-        depth_image = np.asanyarray(depth_frame.get_data())
-        color_image = np.asanyarray(color_frame.get_data())
-        return True, color_image, depth_image, depth_frame
+        self.depth_frame = np.asanyarray(depth_frame.get_data())
+        self.frame = np.asanyarray(color_frame.get_data())
+        self.depth_rsframe = depth_frame
+
+        return True
 
 
     def update(self):
-        ret, self.frame, self.depth_frame, depth_rsframe = self.get_frame()
-
+        ret = self.get_frame()
         if ret is False:
             return
+        self.process_frame()
+
+    def process_frame(self):
+
         # if frame is read correctly ret is True
 
         self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
@@ -333,6 +339,7 @@ class DepthCamera:
                 areas = [cv.contourArea(cnt) for cnt in contours]
 
                 self.trackers_pos = []
+                self.trackers_pos_image = []
                 for i, a in enumerate(areas):
                     if a > self.parameter['area']:
                         x, y = compute_contour_center(contours[i])
@@ -341,6 +348,7 @@ class DepthCamera:
                         depth = compute_median_depth(contours[i], self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
                         worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
                         self.trackers_pos.append([worldx, worldy, worldz])
+                        self.trackers_pos_image.append([x, y, depth])
 
                         cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
                         for frame in [self.hsvFrame, self.frame]:
@@ -352,7 +360,7 @@ class DepthCamera:
                             cv.drawContours(self.frame, [contours[i]], -1, (255, 255, 0), 3)
 
         if self.compute_point_cloud:
-            points = self.pc.calculate(depth_rsframe)
+            points = self.pc.calculate(self.depth_rsframe)
             v = points.get_vertices()
             self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
@@ -370,7 +378,7 @@ class DepthCamera:
                 self.hsvWindow.set_frame(self.hsvFrame)
 
             if self.depthWindow is not None and self.depthWindow.running:
-                colorized = np.asanyarray(rs.colorizer().colorize(depth_rsframe).get_data())
+                colorized = np.asanyarray(rs.colorizer().colorize(self.depth_rsframe).get_data())
                 self.depthWindow.set_frame(colorized)
 
             self.rootWindow.update()
