@@ -7,11 +7,11 @@ from emioapi._logging_config import logger
 
 class EmioMotors(DynamixelMotors):
     """
-    Class to control emio motors.
-    The class is designed to be used with the emio device.
+    Class to control Emio motors.
+    The class is designed to be used with the Emio device.
     The motors are controlled in position mode. The class is thread-safe and can be used in a multi-threaded environment.
 
-    It is a wrapper around the `DynamixelMotors` class from the `dynamixelmotorsapi` package, with some specific configurations for the emio device.
+    It is a wrapper around the `DynamixelMotors` class from the `dynamixelmotorsapi` package, with some specific configurations for the Emio device.
     You can find the documentation of the DynamixelMotors class in the [dynamixelmotorsapi](./dynamixelmotors-api.md) package.
 
     Example:
