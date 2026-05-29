@@ -1,6 +1,13 @@
 """
 [Emio API](https://github.com/SofaComplianceRobotics/Emio.API) is a Python package created to control the [Emio robot](https://compliance-robotics.com/compliance-lab/).
 
+Emio API uses tkinter for the GUI. On certains OS, you may need to install additional packages to use tkinter. 
+
+On Ubuntu, you can install it using the following command:
+```bash
+sudo apt-get install tk
+```
+
 To install it from PyPI, run the following command: 
 ```bash
 pip install emioapi
