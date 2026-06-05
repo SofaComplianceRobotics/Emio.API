@@ -265,11 +265,12 @@ class DepthCamera:
         if self.position_estimator is not None:
             while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300:
                 self.position_estimator.intr= self.intr
-                _, color_image, depth_image, _ = self.get_frame()
-                success = self.position_estimator.calibrate(color_image, depth_image, first, calibration_window)
-                first = success if not first else first
-                if self.show_video_feed:
-                    self.rootWindow.update()
+                hasFrame= self.get_frame()
+                if hasFrame:
+                    success = self.position_estimator.calibrate(self.frame, self.depth_frame, first, calibration_window)
+                    first = success if not first else first
+                    if self.show_video_feed:
+                        self.rootWindow.update()
 
         if success:
             self.position_estimator.compute_camera_to_simulation_transform()
