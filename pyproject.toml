@@ -13,7 +13,7 @@ dependencies = [
     "numpy==1.26.4",
     "pillow",
     "opencv-python>=4.11.0.86",
-    "dynamixelmotorsapi",
+    "dynamixelmotorsapi @ git+https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI@main",
 ]
 description = "An API for controlling  the motors of the EMIO robot."
 keywords = ["roboticsc", "emio", "api"]
