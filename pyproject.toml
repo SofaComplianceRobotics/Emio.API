@@ -12,8 +12,8 @@ dependencies = [
     "pyrealsense2-macosx; platform_system == 'Darwin'",
     "numpy==1.26.4",
     "pillow",
-    "dynamixelmotorsapi @ git+https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI@main",
     "opencv-python>=4.11.0.86",
+    "dynamixelmotorsapi @ git+https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI@main",
 ]
 description = "An API for controlling  the motors of the EMIO robot."
 keywords = ["roboticsc", "emio", "api"]
@@ -74,7 +74,7 @@ Function = 3
 Data = 3
 
 [tool.uv.sources]
-dynamixelmotorsapi = { git = "https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI", rev = "release-main" }
+dynamixelmotorsapi = { git = "https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI", rev = "main" }
 
 [dependency-groups]
 dev = [

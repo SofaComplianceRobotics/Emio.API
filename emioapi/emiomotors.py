@@ -54,3 +54,13 @@ class EmioMotors(DynamixelMotors):
             "max_vel": 1000,
             "baud_rate": 1000000
         }])
+
+    def open(self, device_name: str = None, multi_turn: bool = False) -> bool:
+        super().open(device_name, multi_turn)
+
+        # If the security temperature of the motors is not set, set it to 45 degress Celsius
+        if self.temp_limits != [45]*4:
+            self.torque = False
+            self.temp_limits = [45]*4
+            self.torque = True
+
