@@ -1,9 +1,11 @@
 from dataclasses import field
-from threading import Lock
 from math import pi
+from threading import Lock
 
 from dynamixelmotorsapi import DynamixelMotors
+
 from emioapi._logging_config import logger
+
 
 class EmioMotors(DynamixelMotors):
     """
@@ -40,27 +42,30 @@ class EmioMotors(DynamixelMotors):
 
     """
 
-
     #####################
     ###### METHODS ######
     #####################
 
     def __init__(self):
-        super().__init__([{
-            "id": [0, 1, 2, 3],
-            "model": "XM430-W210",
-            "pulley_radius": 20,
-            "pulse_center": 2048,
-            "max_vel": 1000,
-            "baud_rate": 1000000
-        }])
+        super().__init__(
+            [
+                {
+                    "id": [0, 1, 2, 3],
+                    "model": "XM430-W210",
+                    "pulley_radius": 20,
+                    "pulse_center": 2048,
+                    "max_vel": 1000,
+                    "baud_rate": 1000000,
+                }
+            ]
+        )
 
     def open(self, device_name: str = None, multi_turn: bool = False) -> bool:
-        super().open(device_name, multi_turn)
+        super_res = super().open(device_name, multi_turn)
 
         # If the security temperature of the motors is not set, set it to 45 degress Celsius
-        if self.temp_limits != [45]*4:
+        if self.temp_limits != [53] * 4:
             self.torque = False
-            self.temp_limits = [45]*4
+            self.temp_limits = [53] * 4
             self.torque = True
-
+        return super_res
