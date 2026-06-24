@@ -47,10 +47,11 @@ class EmioAPI:
         > Motor 0 is the first motor in the list, motor 1 is the second motor, etc.
         > You can open a connection directly to the motors using the [`open`](#opendevice_name-str--none) method of the `motors` object.
         > 
-        > :::warning 
-        > 
+        > :::warning
+        >
         > Emio motors are clamped between 0 and PI radians (0 and 180 degrees). If you input a value outside this range, the motor will not move.
-        > 
+        > **Important**: the security temperature for the motors is 53°C. Above this temperature, the motors turn the torque off. Close the connection and turn off Emio, let it cool for a few minutes then Emio back on.
+        >
         > :::
 
     Camera:

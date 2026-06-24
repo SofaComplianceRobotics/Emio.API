@@ -13,6 +13,8 @@ class EmioMotors(DynamixelMotors):
     The class is designed to be used with the Emio device.
     The motors are controlled in position mode. The class is thread-safe and can be used in a multi-threaded environment.
 
+    **Important**: the security temperature for the motors is 53°C. Above this temperature, the motors turn the torque off. Close the connection and turn off Emio, let it cool for a few minutes then Emio back on.
+
     It is a wrapper around the `DynamixelMotors` class from the `dynamixelmotorsapi` package, with some specific configurations for the Emio device.
     You can find the documentation of the DynamixelMotors class in the [dynamixelmotorsapi](./dynamixelmotors-api.md) package.
 
