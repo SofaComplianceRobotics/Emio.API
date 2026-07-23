@@ -2,7 +2,7 @@ dynamixel_sdk
 numpy==1.26.4
 pyserial
 pydoc-markdown
-pillow
+pillow>=12.3.0
 opencv-python
 --find-links https://github.com/cansik/pyrealsense2-macosx/releases; 
 pyrealsense2; platform_system == "Windows" or platform_system == "Linux"
