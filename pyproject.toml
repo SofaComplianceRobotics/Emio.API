@@ -10,10 +10,10 @@ readme = "README.md"
 dependencies = [
     "pyrealsense2; platform_system != 'Darwin'",
     "pyrealsense2-macosx; platform_system == 'Darwin'",
-    "numpy==1.26.4",
     "pillow>=12.3.0",
     "opencv-python>=4.11.0.86",
-    "dynamixelmotorsapi @ git+https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI@main",
+    "dynamixelmotorsapi",
+    "numpy",
 ]
 description = "An API for controlling  the motors of the EMIO robot."
 keywords = ["roboticsc", "emio", "api"]
