@@ -64,7 +64,7 @@ gui = EmioAPIGUI.start_in_thread()
 emiogui = EmioAPIGUI.add_camera_feed(trackbarParams=mockparams, save_callback=lambda: print("Saved params"))
 emiogui1 = EmioAPIGUI.add_camera_feed(trackbarParams=mockparams, save_callback=lambda: print("Saved params"))
 
-while running and gui.gui_handle.is_running():
+while running :
     update_camera()
 
 print("out of while")

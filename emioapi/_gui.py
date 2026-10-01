@@ -72,6 +72,7 @@ class EmioAPIGUI():
                 dpg.add_tab_bar(tag="TAG_TABBAR", parent=EmioAPIGUI.main_window)
                 dpg.show_viewport()
                 dpg.set_primary_window(EmioAPIGUI.TAG_MAINWINDOW, True)
+                self.context_exists = True
         except Exception as e:
             logger.error(str(e))
             raise(e)
