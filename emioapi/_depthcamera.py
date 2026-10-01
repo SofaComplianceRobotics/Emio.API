@@ -173,7 +173,8 @@ class DepthCamera:
 
 
     def create_feed_windows(self):
-        self.gui = EmioAPIGUI.start_in_thread(trackbarParams=self.parameter, save_callback=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w')))
+        self.gui_object = EmioAPIGUI.start_in_thread()
+        self.gui_window = EmioAPIGUI.add_camera_feed(trackbarParams=self.parameter, save_callback=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w')))
 
 
     def quit(self):
