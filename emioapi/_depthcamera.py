@@ -1,12 +1,14 @@
 import json
 import time
 from enum import Enum
+import threading 
+from types import SimpleNamespace
 
 import numpy as np
 import cv2 as cv
 import pyrealsense2 as rs
 
-from ._camerafeedwindow import CameraFeedWindow
+from ._gui import EmioAPIGUI
 from ._positionestimation import PositionEstimation, CONFIG_FILENAME
 from emioapi._logging_config import logger
 
@@ -119,6 +121,10 @@ class DepthCamera:
         self._camera_serial = camera_serial
         self.initialized = True
 
+        """`gui` holds references to the gui itself `gui_handle` and to the running thread of the gui `gui_thread`"""
+        self.gui: SimpleNamespace = None
+        self.lock = threading.Lock()
+
         if not self.initialized:
             return
 
@@ -167,40 +173,9 @@ class DepthCamera:
 
 
     def create_feed_windows(self):
-        import tkinter as tk
-        from tkinter import ttk
-        self.rootWindow = tk.Tk()
-        self.rootWindow.resizable(False, False)
+        self.gui_object = EmioAPIGUI.start_in_thread()
+        self.gui_window = EmioAPIGUI.add_camera_feed(trackbarParams=self.parameter, save_callback=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w')))
 
-        self.rootWindow.title("Camera Feed Manager")
-        ttk.Button(self.rootWindow, text="Close Windows", command=self.quit).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Save", command=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w'))).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Mask Window", command=self.create_mask_window).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Frame Window", command=self.create_frame_window).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="HSV Window", command=self.create_HSV_window).pack(side=tk.BOTTOM, padx=5, pady=5)
-        ttk.Button(self.rootWindow, text="Depth Window", command=self.createDepthWindow).pack(side=tk.BOTTOM, padx=5, pady=5)
-
-        self.create_mask_window()
-        self.create_frame_window()
-
-        self.rootWindow.protocol("WM_DELETE_WINDOW", self.quit)
-        self.rootWindow.update_idletasks()
-
-    def create_mask_window(self):
-        if self.maskWindow is None or not self.maskWindow.running:
-            self.maskWindow = CameraFeedWindow(rootWindow=self.rootWindow, trackbarParams=self.parameter, name='Mask')
-
-    def create_frame_window(self):
-        if self.frameWindow is None or not self.frameWindow.running:
-            self.frameWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='RGB Frame')
-
-    def create_HSV_window(self):
-        if self.hsvWindow is None or not self.hsvWindow.running:
-            self.hsvWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='HSV Frame')
-
-    def createDepthWindow(self):
-        if self.depthWindow is None or not self.depthWindow.running:
-            self.depthWindow = CameraFeedWindow(rootWindow=self.rootWindow, name='Depth Frame')
 
     def quit(self):
         for window in [self.maskWindow, self.frameWindow, self.hsvWindow, self.depthWindow]:
@@ -260,7 +235,7 @@ class DepthCamera:
         self.calibration_status = CalibrationStatusEnum.CALIBRATING
 
         # Create the windows to display the binrary mask and the HSV frame
-        calibration_window = CameraFeedWindow(rootWindow=self.rootWindow, name='Calibration')
+        calibration_window = EmioAPIGUI(rootWindow=self.rootWindow, name='Calibration')
 
         if self.position_estimator is not None:
             while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300:
@@ -295,11 +270,12 @@ class DepthCamera:
             return False
 
         # Convert images to numpy arrays
-        self.depth_frame = np.asanyarray(depth_frame.get_data())
-        self.frame = np.asanyarray(color_frame.get_data())
-        self.depth_rsframe = depth_frame
+        with self.lock:
+            self.depth_frame = np.asanyarray(depth_frame.get_data())
+            self.frame = np.asanyarray(color_frame.get_data())
+            self.depth_rsframe = depth_frame
 
-        return True
+            return True
 
 
     def update(self):
@@ -311,78 +287,63 @@ class DepthCamera:
     def process_frame(self):
 
         # if frame is read correctly ret is True
+        with self.lock:
+            self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
 
-        self.hsvFrame = cv.cvtColor(self.frame, cv.COLOR_BGR2HSV)
+            # color definition
+            red_lower = np.array([self.parameter['hue_l'], self.parameter['sat_l'], self.parameter['value_l']])
+            red_upper = np.array([self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
 
-        # color definition
-        red_lower = np.array([self.parameter['hue_l'], self.parameter['sat_l'], self.parameter['value_l']])
-        red_upper = np.array([self.parameter['hue_h'], self.parameter['sat_h'], self.parameter['value_h']])
+            # red color mask (sort of thresholding, actually segmentation)
+            mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
+            mask2 = cv.inRange(self.depth_frame, self.depth_min, self.depth_max)
 
-        # red color mask (sort of thresholding, actually segmentation)
-        mask = cv.inRange(self.hsvFrame, red_lower, red_upper)
-        mask2 = cv.inRange(self.depth_frame, self.depth_min, self.depth_max)
+            mask = cv.bitwise_and(mask, mask2, mask=mask)
 
-        mask = cv.bitwise_and(mask, mask2, mask=mask)
+            erosion_shape = cv.MORPH_RECT
+            erosion_size = self.parameter['erosion_size']
+            element = cv.getStructuringElement(erosion_shape, (2 * erosion_size + 1, 2 * erosion_size + 1),
+                                            (erosion_size, erosion_size))
 
-        erosion_shape = cv.MORPH_RECT
-        erosion_size = self.parameter['erosion_size']
-        element = cv.getStructuringElement(erosion_shape, (2 * erosion_size + 1, 2 * erosion_size + 1),
-                                           (erosion_size, erosion_size))
+            mask = cv.erode(mask, element, iterations=3)
+            mask = cv.dilate(mask, element, iterations=3)
 
-        mask = cv.erode(mask, element, iterations=3)
-        mask = cv.dilate(mask, element, iterations=3)
+            self.maskFrame = cv.bitwise_and(self.frame, self.frame, mask=mask)
 
-        self.maskFrame = cv.bitwise_and(self.frame, self.frame, mask=mask)
+            if self.tracking:
+                contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+                if len(contours) != 0:
+                    areas = [cv.contourArea(cnt) for cnt in contours]
 
-        if self.tracking:
-            contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-            if len(contours) != 0:
-                areas = [cv.contourArea(cnt) for cnt in contours]
+                    self.trackers_pos = []
+                    self.trackers_pos_image = []
+                    for i, a in enumerate(areas):
+                        if a > self.parameter['area']:
+                            x, y = compute_contour_center(contours[i])
+                            marker_mask = np.zeros_like(mask)
 
-                self.trackers_pos = []
-                self.trackers_pos_image = []
-                for i, a in enumerate(areas):
-                    if a > self.parameter['area']:
-                        x, y = compute_contour_center(contours[i])
-                        marker_mask = np.zeros_like(mask)
+                            depth = compute_median_depth(contours[i], self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
+                            worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
+                            self.trackers_pos.append([worldx, worldy, worldz])
+                            self.trackers_pos_image.append([x, y, depth])
 
-                        depth = compute_median_depth(contours[i], self.depth_frame) if self.depth_frame[y, x] == 0 else self.depth_frame[y, x]
-                        worldx, worldy, worldz = self.position_estimator.camera_image_to_simulation(x, y, depth)
-                        self.trackers_pos.append([worldx, worldy, worldz])
-                        self.trackers_pos_image.append([x, y, depth])
+                            cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
+                            for frame in [self.hsvFrame, self.frame]:
+                                cv.circle(frame, (x, y), 2, color=255, thickness=-1)
+                                cv.putText(frame, f"{i} ({x}, {y}, {depth})", (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                                cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
 
-                        cv.drawContours(marker_mask, [contours[i]], -1, color=255, thickness=-1)
-                        for frame in [self.hsvFrame, self.frame]:
-                            cv.circle(frame, (x, y), 2, color=255, thickness=-1)
-                            cv.putText(frame, f"{i} ({x}, {y}, {depth})", (x, y), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
-                            cv.putText(frame, f"{i} ({worldx:.2f}, {worldy:.2f}, {worldz:.2f})", (x, y + 15), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                            if self.show_video_feed:
+                                cv.drawContours(self.frame, [contours[i]], -1, (255, 255, 0), 3)
 
-                        if self.show_video_feed:
-                            cv.drawContours(self.frame, [contours[i]], -1, (255, 255, 0), 3)
+            if self.compute_point_cloud:
+                points = self.pc.calculate(self.depth_rsframe)
+                v = points.get_vertices()
+                self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
-        if self.compute_point_cloud:
-            points = self.pc.calculate(self.depth_rsframe)
-            v = points.get_vertices()
-            self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
-
-        if self.show_video_feed:
-            if self.rootWindow is None:
-                self.create_feed_windows()
-
-            if self.maskWindow is not None and self.maskWindow.running:
-                self.maskWindow.set_frame(self.maskFrame)
-
-            if self.frameWindow is not None and self.frameWindow.running:
-                self.frameWindow.set_frame(self.frame)
-
-            if self.hsvWindow is not None and self.hsvWindow.running:
-                self.hsvWindow.set_frame(self.hsvFrame)
-
-            if self.depthWindow is not None and self.depthWindow.running:
+            if self.show_video_feed and self.gui.gui_handle.is_running():
                 colorized = np.asanyarray(rs.colorizer().colorize(self.depth_rsframe).get_data())
-                self.depthWindow.set_frame(colorized)
-
-            self.rootWindow.update()
+                self.gui.gui_handle.set_frames(self.frame, colorized, self.maskFrame, self.hsvFrame)
 
 
     def close(self):
