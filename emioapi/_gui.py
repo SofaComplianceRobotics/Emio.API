@@ -80,11 +80,12 @@ class EmioAPIGUI():
 
     def run_loop(self):
         while dpg.is_dearpygui_running():
-                    dpg.render_dearpygui_frame()
+            dpg.render_dearpygui_frame()
 
-        if EmioAPIGUI.windowCount == 0:
-            dpg.destroy_context()
-            self.context_exists = False
+        logger.debug("Closing GUI...")
+        self.context_exists = False 
+        dpg.destroy_context()
+        logger.warning("GUI is closed but EmioAPI is still running!")
 
 
     def is_running(self):
