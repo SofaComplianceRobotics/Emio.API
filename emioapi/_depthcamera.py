@@ -8,7 +8,7 @@ import numpy as np
 import cv2 as cv
 import pyrealsense2 as rs
 
-from ._camerafeedwindow import EmioAPIGUI
+from ._gui import EmioAPIGUI
 from ._positionestimation import PositionEstimation, CONFIG_FILENAME
 from emioapi._logging_config import logger
 
