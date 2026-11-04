@@ -32,8 +32,8 @@ def calibrate():
     import emioapi
     from emioapi._logging_config import logger 
 
-    camera = emioapi.EmioCamera(show=True)
     print("Available cameras:", emioapi.EmioCamera.listCameras())
+    camera = emioapi.EmioCamera(show=True, track_markers=True)
 
     if camera.open():
         print(f"Camera {camera.camera_serial} opened.")

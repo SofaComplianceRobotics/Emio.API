@@ -8,14 +8,16 @@ import numpy as np
 from emioapi._logging_config import logger
 
 
-"""
-    This class is used to create a camera feed window that displays the video feed from a camera.
-    It runs in a separate thread and can be started and stopped using the start() and stop() methods.
-    The camera feed is displayed in a window named 'mask'.
-    The class uses OpenCV to create the window and display the video feed.
-    The camera feed is passed to the class as a frame parameter.
-"""	
 class EmioAPIGUI():
+    """
+        This class is used to create a GUI for the Emio API. 
+        The GUI is created in a separate thread and the main thread is used to update the camera frames.
+        It uses DearPyGui to create a window that displays the camera feed and allows the user to adjust parameters using trackbars.
+        The camera feed is displayed in tabs, and the user can switch between different camera feeds if multiple cameras are connected.
+        You need to feed the camera frames to the GUI using the `set_frames` method of the `_CameraFeedWindow` class returned by the `add_camera_feed` method of this class.
+
+        Note: Only one instance of this class can be created per process. This is because DearPyGui does not support multiple contexts in the same process. If you need to create multiple camera feed windows, you can use the `add_camera_feed` method of this class to create additional windows in the same context.
+    """	
 
     TAG_MAINWINDOW:Final[str] = "MainWindow"
     TAG_DEPTHTEX:Final[str] = "tex_depth"
@@ -56,11 +58,12 @@ class EmioAPIGUI():
             logger.warning(f"EmioAPIGUI thread is already running in a thread.")
 
         return EmioAPIGUI.gui
+    
 
     @staticmethod
     def add_camera_feed(trackbarParams={}, save_callback=None):
         return EmioAPIGUI._CameraFeedWindow(trackbarParams, save_callback)
-        
+    
 
     def __init__(self):
         try:
@@ -79,7 +82,7 @@ class EmioAPIGUI():
     
 
     def run_loop(self):
-        while dpg.is_dearpygui_running():
+        while self.is_running():
             dpg.render_dearpygui_frame()
 
         logger.debug("Closing GUI...")
@@ -93,9 +96,17 @@ class EmioAPIGUI():
 
 
     class _CameraFeedWindow():
-        def __init__(self, trackbarParams={}, save_callback=None):
+        """
+        This class is used to create a camera feed window that displays the video feed from a camera
+        It displays four frames: RGB, Depth, Mask and HSV.
+        The class also creates trackbars for the parameters passed in the trackbarParams dictionary."""
+
+        def __init__(self, trackbarParams={}, save_callback=None, label=""):
             self.window_id = str(EmioAPIGUI.windowCount)
-            logger.debug(f"Creating CameraFeedWindow  {self.window_id}")
+            self.window_label = label if label else f"Window {self.window_id}"
+            self.window_tag = f"{self.window_label}_{self.window_id}"
+
+            logger.debug(f"Creating CameraFeedWindow {self.window_label} with tag {self.window_tag}")
 
             self.default_param = trackbarParams.copy()
             self.trackbarParams = trackbarParams
@@ -105,6 +116,7 @@ class EmioAPIGUI():
 
             self.save_callback = save_callback
 
+
             # Textures for camera frames
             with dpg.texture_registry(show=False):
                 blank_data = np.zeros((EmioAPIGUI.TEXWIDTH * EmioAPIGUI.TEXHEIGHT * 4,), dtype=np.float32)
@@ -113,15 +125,15 @@ class EmioAPIGUI():
                 dpg.add_dynamic_texture(width=EmioAPIGUI.TEXWIDTH, height=EmioAPIGUI.TEXHEIGHT, default_value=blank_data, tag=EmioAPIGUI.TAG_MASKTEX+self.window_id)
                 dpg.add_dynamic_texture(width=EmioAPIGUI.TEXWIDTH, height=EmioAPIGUI.TEXHEIGHT, default_value=blank_data, tag=EmioAPIGUI.TAG_HSVTEX+self.window_id)
 
-            # with dpg.tab_bar(parent=EmioAPIGUI.main_window):
-            with dpg.tab(label=f"Window {self.window_id}", parent="TAG_TABBAR"):
+            # Tab window
+            with dpg.tab(label=self.window_label, parent="TAG_TABBAR"):
                 with dpg.child_window(no_scroll_with_mouse=True, no_scrollbar=True):
                     # params
                     with dpg.child_window(width=300):
                         if self.trackbarParams:
                             for key, val in self.trackbarParams.items():
                                 dpg.add_text(default_value=str(key))
-                                dpg.add_slider_double(tag=f"TAG_SLIDER{self.window_id}_{key}",min_value=0, max_value=255, default_value=val)
+                                dpg.add_slider_int(tag=f"TAG_SLIDER{self.window_id}_{key}",min_value=0, max_value=255, default_value=val, callback=self.on_change)
                             with dpg.group(horizontal=True):
                                 dpg.add_button(label="Save Params", callback=self.save_params)
                                 dpg.add_button(label="Reset Params", callback=self.reset_params)
@@ -162,6 +174,12 @@ class EmioAPIGUI():
             else:
                 self.save_callback()
 
+
+        def on_change(self, sender_data, app_data):
+            for key, _ in self.trackbarParams.items():
+                self.trackbarParams[key] = int(dpg.get_value(f"TAG_SLIDER{self.window_id}_{key}"))
+
+
         def set_frames(self, rgb, depth, mask, hsv):
                 if rgb is not None:
                     dpg.set_value(EmioAPIGUI.TAG_RGBTEX+self.window_id, np.ascontiguousarray(cv.cvtColor(rgb, cv.COLOR_BGR2RGBA), dtype=np.float32)/255)
@@ -171,3 +189,7 @@ class EmioAPIGUI():
                     dpg.set_value(EmioAPIGUI.TAG_MASKTEX+self.window_id, np.ascontiguousarray(cv.cvtColor(mask, cv.COLOR_BGR2RGBA), dtype=np.float32)/255)
                 if hsv is not None:
                     dpg.set_value(EmioAPIGUI.TAG_HSVTEX+self.window_id, np.ascontiguousarray(cv.cvtColor(hsv, cv.COLOR_BGR2RGBA), dtype=np.float32)/255)
+
+
+        def close(self):
+            dpg.delete_item(self.window_tag)

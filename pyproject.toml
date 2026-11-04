@@ -12,7 +12,7 @@ dependencies = [
     "pyrealsense2-macosx; platform_system == 'Darwin'",
     "pillow>=12.3.0",
     "opencv-python>=4.11.0.86",
-    "dynamixelmotorsapi",
+    "dynamixelmotorsapi @ git+https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI@main",
     "numpy",
     "dearpygui>=2.3.1",
     "cv2-enumerate-cameras>=1.4.0",

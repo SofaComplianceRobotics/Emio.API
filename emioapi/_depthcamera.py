@@ -121,8 +121,8 @@ class DepthCamera:
         self._camera_serial = camera_serial
         self.initialized = True
 
-        """`gui` holds references to the gui itself `gui_handle` and to the running thread of the gui `gui_thread`"""
-        self.gui: SimpleNamespace = None
+        self.gui_object: SimpleNamespace = None
+        """`gui_object`: holds references to the EmioAPIGUI instance itself `gui_handle` and to the running thread of the gui `gui_thread`"""
         self.lock = threading.Lock()
 
         if not self.initialized:
@@ -173,8 +173,12 @@ class DepthCamera:
 
 
     def create_feed_windows(self):
+        """
+        Creates the GUI thread and the camera feed window. The GUI thread is created only once and the camera feed window is created in the GUI thread. The camera feed window is updated in the main thread."""
+
         self.gui_object = EmioAPIGUI.start_in_thread()
         self.gui_window = EmioAPIGUI.add_camera_feed(trackbarParams=self.parameter, save_callback=lambda: json.dump(self.parameter, open(CONFIG_FILENAME, 'w')))
+        """ EmioAPIGUI._CameraFeedWindow object. """
 
 
     def quit(self):
@@ -234,8 +238,9 @@ class DepthCamera:
         success = False
         self.calibration_status = CalibrationStatusEnum.CALIBRATING
 
-        # Create the windows to display the binrary mask and the HSV frame
-        calibration_window = EmioAPIGUI(rootWindow=self.rootWindow, name='Calibration')
+        # Create the windows to display the binary mask and the HSV frame
+        if self.show_video_feed and self.gui_window:
+            calibration_window = self.gui_window
 
         if self.position_estimator is not None:
             while self.position_estimator.count_calibration_frames < 200 and time.time() - starttime < 300:
@@ -244,15 +249,10 @@ class DepthCamera:
                 if hasFrame:
                     success = self.position_estimator.calibrate(self.frame, self.depth_frame, first, calibration_window)
                     first = success if not first else first
-                    if self.show_video_feed:
-                        self.rootWindow.update()
 
         if success:
             self.position_estimator.compute_camera_to_simulation_transform()
             logger.info(f"Camera {self.camera_serial} successfully calibrated.")
-
-        # Close the calibration window
-        calibration_window.closed()
 
         self.calibration_status = CalibrationStatusEnum.CALIBRATED if success else CalibrationStatusEnum.NOT_CALIBRATED
         return success
@@ -341,9 +341,9 @@ class DepthCamera:
                 v = points.get_vertices()
                 self.point_cloud = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
-            if self.show_video_feed and self.gui.gui_handle.is_running():
+            if self.show_video_feed and self.gui_window and self.gui_object.gui_handle.is_running():
                 colorized = np.asanyarray(rs.colorizer().colorize(self.depth_rsframe).get_data())
-                self.gui.gui_handle.set_frames(self.frame, colorized, self.maskFrame, self.hsvFrame)
+                self.gui_window.set_frames(self.frame, colorized, self.maskFrame, self.hsvFrame)
 
 
     def close(self):
