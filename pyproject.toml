@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "emioapi"
 version = "0.3.0"
-requires-python = ">=3.10.10"
+requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
     "pyrealsense2; platform_system != 'Darwin'",
     "pyrealsense2-macosx; platform_system == 'Darwin'",
-    "pillow>=12.3.0",
+    "pillow>=13.0.0",
     "opencv-python>=4.11.0.86",
     "dynamixelmotorsapi @ git+https://github.com/SofaComplianceRobotics/DynamixelMotorsAPI@main",
     "numpy",
