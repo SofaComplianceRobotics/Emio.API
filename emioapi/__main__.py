@@ -45,7 +45,7 @@ def calibrate():
         while camera.is_running:
             try:
                 camera.update() # update the camera frame and trackers
-                logger.info(camera.trackers_pos)
+                logger.info(f"Trackers positions: {camera.trackers_pos}")
             except KeyboardInterrupt: 
                 logger.info("Keyboard interrupt received.")
                 break

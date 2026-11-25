@@ -153,6 +153,13 @@ class DepthCamera:
 
         # self.update() # to get a first frame and trackers
 
+    def set_show_video_feed(self, show_video_feed: bool):
+        self.show_video_feed = show_video_feed
+        if self.show_video_feed:
+            self.create_feed_windows()
+        else:
+            self.quit()
+
     def set_fps(self, new_fps: int):
         if new_fps in [30, 60, 90]:
             self.fps = new_fps

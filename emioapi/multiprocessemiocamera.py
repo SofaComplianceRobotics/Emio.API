@@ -359,7 +359,7 @@ class MultiprocessEmioCamera:
         """
 
         logger.debug("Starting camera {} process with show: {}, tracking: {}, compute_point_cloud: {}".format(camera_serial.value, show.value, tracking.value, compute_point_cloud.value))
-        camera = depthcamera.DepthCamera(camera_serial=camera_serial.value, parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
+        camera = DepthCamera(camera_serial=camera_serial.value, parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
         parameter.update(camera.parameter)
         # camera_serial.value = "Test1"
 
