@@ -137,6 +137,8 @@ class EmioAPIGUI():
                             with dpg.group(horizontal=True):
                                 dpg.add_button(label="Save Params", callback=self.save_params)
                                 dpg.add_button(label="Reset Params", callback=self.reset_params)
+                                dpg.add_button(label="Close Window", callback=lambda: dpg.delete_item(self.window_tag))
+                                dpg.add_button(label="Quit", callback=lambda: dpg.stop_dearpygui())
 
                     # frames
                     width, height = self.image_size
