@@ -5,6 +5,7 @@ import multiprocessing.sharedctypes
 from multiprocessing.synchronize import Lock
 from multiprocessing import Process
 import multiprocessing
+import atexit
 import time
 from ctypes import c_wchar_p
 
@@ -89,6 +90,8 @@ class MultiprocessEmioCamera:
         self._parameter = self._manager.dict()
         if parameter is not None:
             self._parameter.update(parameter)
+
+        atexit.register(self.atexitCallback)
 
 
 
@@ -303,14 +306,17 @@ class MultiprocessEmioCamera:
         del self_dict['_manager']
         return self_dict
 
+    def atexitCallback(self):
+        print("Terminating camera process")
+        self.close()
 
     def open(self, camera_serial: str=None) -> bool:
         """
         Initialize and open the camera in another process.
         This function creates a new process to handle the camera and starts it.
         """
-        if self._running.value:
-             self._camera_process.terminate()
+        if self._camera_process is not None and self._camera_process.is_alive():
+            self.close()
 
         if camera_serial is not None:
             self._camera_serial.value = camera_serial
@@ -358,44 +364,47 @@ class MultiprocessEmioCamera:
             mask_frame: list: A list to store the mask frame.
         """
 
-        logger.debug("Starting camera {} process with show: {}, tracking: {}, compute_point_cloud: {}".format(camera_serial.value, show.value, tracking.value, compute_point_cloud.value))
-        camera = depthcamera.DepthCamera(camera_serial=camera_serial.value, parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
-        parameter.update(camera.parameter)
-        # camera_serial.value = "Test1"
+        camera = None
+        try:
+            logger.debug("Starting camera {} process with show: {}, tracking: {}, compute_point_cloud: {}".format(camera_serial.value, show.value, tracking.value, compute_point_cloud.value))
+            camera = DepthCamera(camera_serial=camera_serial.value, parameter=parameter, compute_point_cloud=compute_point_cloud.value, show_video_feed=show.value, tracking=tracking.value)
+            parameter.update(camera.parameter)
+            camera.open()
 
-        running.value = True
-        while running.value:
-            with self._lock_camera:
-                camera.compute_point_cloud = compute_point_cloud.value
-                camera.tracking = tracking.value
+            running.value = True
+            while running.value:
+                with self._lock_camera:
+                    camera.compute_point_cloud = compute_point_cloud.value
+                    camera.tracking = tracking.value
 
-                camera.update()
+                    camera.update()
 
-                show.value = camera.show_video_feed
-                
-                del hsv_frame[:]
-                hsv_frame.append(camera.hsvFrame)
-                
-                del mask_frame[:]
-                mask_frame.append(camera.maskFrame)
+                    show.value = camera.show_video_feed
+                    del hsv_frame[:]
+                    hsv_frame.append(camera.hsvFrame)
+                    del mask_frame[:]
+                    mask_frame.append(camera.maskFrame)
 
-                if tracking:
-                    del trackers_pos[:]
-                    trackers_pos.extend(camera.trackers_pos)
+                    if tracking.value:
+                        del trackers_pos[:]
+                        trackers_pos.extend(camera.trackers_pos)
 
-                if compute_point_cloud:
-                    del point_cloud[:]
-                    point_cloud.append(camera.point_cloud)
-                
-
-        camera.close()
-        running.value = False
+                    if compute_point_cloud.value:
+                        del point_cloud[:]
+                        point_cloud.append(camera.point_cloud)
+        except Exception:
+            logger.exception("Camera process failed")
+        finally:
+            running.value = False
+            if camera is not None:
+                camera.close()
 
         
     def close(self):
         """
-        Close the camera and terminate the process. Sets the running status to False.
+        Ask the camera process to close cleanly, then force-stop it if it does not exit.
         """
         self._running.value = False
-        if self._camera_process.is_alive():
+        if self._camera_process is not None and self._camera_process.is_alive():
             self._camera_process.terminate()
+            self._camera_process.join()

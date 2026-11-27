@@ -1,9 +1,8 @@
-dynamixel_sdk
 numpy
-pyserial
-pydoc-markdown
-pillow>=12.3.0
+pillow>=13.0.0
 opencv-python
+dearpygui>=2.3.1
+cv2-enumerate-cameras>=1.4.0
 --find-links https://github.com/cansik/pyrealsense2-macosx/releases; 
 pyrealsense2; platform_system == "Windows" or platform_system == "Linux"
 pyrealsense2-macosx; platform_system == "Darwin"

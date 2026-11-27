@@ -204,7 +204,7 @@ class EmioCamera:
         """
         self._show = value
         if self._camera is not None:
-            self._camera.show_video_feed = value
+            self._camera.set_show_video_feed(value)
 
 
     @property

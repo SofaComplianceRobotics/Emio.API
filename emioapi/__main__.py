@@ -32,8 +32,8 @@ def calibrate():
     import emioapi
     from emioapi._logging_config import logger 
 
-    camera = emioapi.EmioCamera(show=True)
     print("Available cameras:", emioapi.EmioCamera.listCameras())
+    camera = emioapi.EmioCamera(show=True, track_markers=True)
 
     if camera.open():
         print(f"Camera {camera.camera_serial} opened.")
@@ -45,7 +45,7 @@ def calibrate():
         while camera.is_running:
             try:
                 camera.update() # update the camera frame and trackers
-                logger.info(camera.trackers_pos)
+                logger.info(f"Trackers positions: {camera.trackers_pos}")
             except KeyboardInterrupt: 
                 logger.info("Keyboard interrupt received.")
                 break
