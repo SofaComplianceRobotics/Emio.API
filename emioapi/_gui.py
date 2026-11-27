@@ -1,5 +1,6 @@
 from typing import Final, Tuple
 from types import SimpleNamespace
+import sys
 
 import dearpygui.dearpygui as dpg
 import cv2 as cv
@@ -137,8 +138,9 @@ class EmioAPIGUI():
                             with dpg.group(horizontal=True):
                                 dpg.add_button(label="Save Params", callback=self.save_params)
                                 dpg.add_button(label="Reset Params", callback=self.reset_params)
-                                dpg.add_button(label="Close Window", callback=lambda: dpg.delete_item(self.window_tag))
-                                dpg.add_button(label="Quit", callback=lambda: dpg.stop_dearpygui())
+                            with dpg.group(horizontal=True):
+                                dpg.add_button(label="Close Window", callback=lambda: dpg.delete_item(self.window_tag) or dpg.stop_dearpygui())
+                                dpg.add_button(label="Quit", callback=lambda sender, app_data, user_data: dpg.stop_dearpygui() or sys.exit(0))
 
                     # frames
                     width, height = self.image_size
