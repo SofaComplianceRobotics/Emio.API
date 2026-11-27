@@ -13,49 +13,55 @@ from emioapi._logging_config import logger
 
 
 def main():
-    emio = MultiprocessEmioCamera()
+    camera = MultiprocessEmioCamera()
 
-    emio.show_frames = True # Show camera frames. Default is False.
-    emio.track_markers = True # Track objects. Default is True.
-    emio.compute_point_cloud = True # Compute point cloud. Default is False.
+    camera.show_frames = True # Show camera frames. Default is False.
+    camera.track_markers = True # Track objects. Default is True.
+    camera.compute_point_cloud = True # Compute point cloud. Default is False.
 
     # Camera tracking parameters. If None, a config file is read. If there is no config file, default values are used {"hue_h": 90, "hue_l": 36, "sat_h": 255, "sat_l": 138, "value_h": 255, "value_l": 35, "erosion_size": 0, "area": 100}
-    emio.parameters = None 
+    camera.parameters = None 
 
     try:
         logger.info("List of available cameras: "+str(MultiprocessEmioCamera.listCameras()))
 
-        if emio.open(): # Open the camera with the current parameters. This will start the camera process.
-            logger.info(f"Camera {emio.camera_serial} opened successfully.")
+        if camera.open(): # Open the camera with the current parameters. This will start the camera process.
+            logger.info(f"Camera {camera.camera_serial} opened successfully.")
 
             i = 0
-            while i<20:
+            while i<20 and camera.is_running:
                 time.sleep(1)
-                print("--" * 20)
-                
-                # all properties of the emiocamera
-                logger.info(f"Camera parameters: {emio.parameters}")
-                logger.info(f"Camera show: {emio.show_frames}")
-                logger.info(f"Camera tracking: {emio.track_markers}")
-                logger.info(f"Camera compute point cloud: {emio.compute_point_cloud}")
-                logger.info(f"Camera is running: {emio.is_running}")
-                logger.info(f"Count tracker positions: {len(emio.trackers_pos)}")
-                logger.info(f"Point cloud shape: {emio.point_cloud.shape}")
-                logger.info(f"HSV Frame shape: {emio.hsv_frame.shape}")
-                logger.info(f"Mask Frame shape: {emio.mask_frame.shape}")
+                try:
+                    print("--" * 20)
 
-                i += 1
+                    print(camera._camera_process)
+                    
+                    # all properties of the emiocamera
+                    logger.info(f"Camera parameters: {camera.parameters}")
+                    logger.info(f"Camera show: {camera.show_frames}")
+                    logger.info(f"Camera tracking: {camera.track_markers}")
+                    logger.info(f"Camera compute point cloud: {camera.compute_point_cloud}")
+                    logger.info(f"Camera is running: {camera.is_running}")
+                    logger.info(f"Count tracker positions: {len(camera.trackers_pos)}")
+                    logger.info(f"Point cloud shape: {camera.point_cloud.shape}")
+                    logger.info(f"HSV Frame shape: {camera.hsv_frame.shape}")
+                    logger.info(f"Mask Frame shape: {camera.mask_frame.shape}")
 
-            emio.close()
+                    i += 1
+                except Exception as e:
+                    logger.info(f"An error occured while getting camera: {e}")
+                    break
+
+            camera.close()
 
 
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received. Closing camera...")
-        emio.close()
+        camera.close()
         return
     except Exception as e:
         logger.exception(f"Failed running camera: {e}")
-        emio.close()
+        camera.close()
         return
 
 
